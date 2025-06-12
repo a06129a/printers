@@ -1,5 +1,6 @@
 import flet as ft
 import re
+from conexion_bd import get_connection
 
 class RegistroView:
     def __init__(self, page):
@@ -27,19 +28,43 @@ class RegistroView:
         confirmar = ft.TextField(label="Confirmar contraseña", password=True, can_reveal_password=True, border_radius=8, bgcolor="black", width=300)
 
         def on_register(e):
-            if not nombre.value or not usuario.value or not correo.value or not contraseña.value or not confirmar.value:
+            if not nombre.value.strip() or not usuario.value.strip() or not correo.value.strip() or not contraseña.value.strip() or not confirmar.value.strip():
                 self.mensaje.value = "Completa todos los campos"
                 self.mensaje.color = "red"
-            elif "@" not in correo.value or "." not in correo.value:
-                self.mensaje.value = "Falta @ o dominio"
+            elif not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", correo.value.strip()):
+                self.mensaje.value = "Correo inválido"
                 self.mensaje.color = "red"
             elif contraseña.value != confirmar.value:
                 self.mensaje.value = "Las contraseñas no coinciden"
                 self.mensaje.color = "red"
             else:
-                self.mensaje.value = "¡Registro exitoso!"
-                self.mensaje.color = "green"
-                self.page.go("/login")
+                try:
+                    conexion = get_connection()
+                    cursor = conexion.cursor()
+
+                    cursor.execute("SELECT * FROM usuarios WHERE nombre_usuario = ?", (usuario.value,))
+                    resultado = cursor.fetchone()
+
+                    if resultado:
+                        self.mensaje.value = "El nombre de usuario ya está registrado"
+                        self.mensaje.color = "red"
+                    else:
+                        cursor.execute(
+                            "INSERT INTO usuarios (nombre_usuario, contrasena) VALUES (?, ?)",
+                            (usuario.value, contraseña.value)
+                        )
+                        conexion.commit()
+                        self.mensaje.value = "¡Registro exitoso!"
+                        self.mensaje.color = "green"
+
+
+                    conexion.close()
+
+                except Exception as error:
+                    print("Error en el registro:", error)
+                    self.mensaje.value = "Error en el registro"
+                    self.mensaje.color = "red"
+
             self.page.update()
 
         return ft.View(
@@ -57,7 +82,7 @@ class RegistroView:
                             ft.Text("Registro de Usuario", size=26, weight="bold", color="#333"),
                             nombre, usuario, correo, contraseña, confirmar,
                             ft.ElevatedButton("Registrarse", on_click=on_register, width=300,
-                                              style=ft.ButtonStyle(bgcolor="#1976d2", color="white")),
+                                            style=ft.ButtonStyle(bgcolor="#1976d2", color="white")),
                             self.mensaje,
                             ft.Text("¿Ya tienes una cuenta?", size=12),
                             ft.TextButton("Inicia sesión aquí", on_click=lambda e: self.page.go("/login"))

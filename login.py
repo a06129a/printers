@@ -1,4 +1,5 @@
 import flet as ft
+from conexion_bd import get_connection
 
 class LoginView:
     def __init__(self, page):
@@ -11,17 +12,31 @@ class LoginView:
 
         def on_login(e):
             if not usuario.value.strip() and not contraseña.value.strip():
-                self.mensaje.value = "No introdujiste el usuario ni la contraseña"
+                self.mensaje.value = "No introduciste el usuario ni la contraseña"
                 self.mensaje.color = "red"
             elif not usuario.value.strip():
-                self.mensaje.value = "No introdujiste el usuario"
+                self.mensaje.value = "No introduciste el usuario"
                 self.mensaje.color = "red"
             elif not contraseña.value.strip():
-                self.mensaje.value = "No introdujiste la contraseña"
+                self.mensaje.value = "No introduciste la contraseña"
                 self.mensaje.color = "red"
             else:
-                self.page.go("/clientes")
-                return  
+                conn = get_connection()
+                if conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "SELECT * FROM usuarios WHERE nombre_usuario = ? AND contrasena = ?",
+                        (usuario.value, contraseña.value)
+                    )
+                    resultado = cursor.fetchone()
+                    conn.close()
+
+                    if resultado:
+                        self.page.go("/clientes")
+                        return
+                    else:
+                        self.mensaje.value = "Credenciales incorrectas"
+                        self.mensaje.color = "red"
             self.page.update()
 
         return ft.View(
