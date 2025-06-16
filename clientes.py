@@ -1,12 +1,15 @@
 from conexion_bd import get_connection
 import flet as ft
 import re
+from functools import partial
 
 class ClientesView:
     def __init__(self, page: ft.Page):
         self.page = page
         self.lista_clientes = ft.Column(scroll=ft.ScrollMode.ALWAYS)
         self.mensaje = ft.Text(value="", color="green", size=14)
+        self.orden_filtro = 0
+        self.buscador_input = ft.TextField(hint_text="Buscar por nombre...", expand=True)
 
     def ir_a_costos(self, documento):
         self.page.client_storage.set("documento_cliente", documento)
@@ -64,6 +67,13 @@ class ClientesView:
             conn = get_connection()
             if conn:
                 cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM clientes WHERE Documento = ?", (self.documento_input.value,))
+                if cursor.fetchone()[0] > 0:
+                    self.mensaje.value = "Documento ya registrado"
+                    self.mensaje.color = "red"
+                    self.page.update()
+                    return
+
                 cursor.execute(
                     "INSERT INTO clientes (nombre, Documento, fecha_ultima_edicion) VALUES (?, ?, ?)",
                     (self.nombre_input.value, self.documento_input.value, fecha)
@@ -80,6 +90,13 @@ class ClientesView:
             self.mensaje.color = "green"
             self.cargar_clientes()
             self.page.update()
+
+        def cambiar_lista(e):
+            self.orden_filtro = (self.orden_filtro + 1) % 3
+            self.cargar_clientes()
+
+        def buscar_clientes(e):
+            self.cargar_clientes()
 
         self.cargar_clientes = lambda: render_clientes(self.obtener_clientes_desde_bd())
         self.cargar_clientes()
@@ -103,6 +120,11 @@ class ClientesView:
                             ft.ElevatedButton("Agregar", on_click=agregar_cliente),
                         ], spacing=10),
                         self.mensaje,
+                        ft.Row([
+                            self.buscador_input,
+                            ft.ElevatedButton("Buscar", on_click=buscar_clientes),
+                            ft.ElevatedButton("Cambiar orden", on_click=cambiar_lista)
+                        ], spacing=10),
                         ft.Divider(color="white"),
                         self.lista_clientes,
                         ft.Divider(),
@@ -115,10 +137,22 @@ class ClientesView:
         )
 
     def obtener_clientes_desde_bd(self):
+        orden_sql = {
+            0: "ORDER BY nombre ASC",
+            1: "ORDER BY fecha_ultima_edicion DESC",
+            2: "ORDER BY fecha_ultima_edicion ASC"
+        }
         conn = get_connection()
         if conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT id_cliente, nombre, Documento, fecha_ultima_edicion FROM clientes")
+            query = f"""
+                SELECT id_cliente, nombre, Documento, fecha_ultima_edicion 
+                FROM clientes 
+                WHERE nombre LIKE ?
+                {orden_sql[self.orden_filtro]}
+            """
+            filtro = f"%{self.buscador_input.value.strip()}%"
+            cursor.execute(query, (filtro,))
             rows = cursor.fetchall()
             conn.close()
             return [dict(zip(["id_cliente", "nombre", "Documento", "fecha_ultima_edicion"], row)) for row in rows]

@@ -56,7 +56,7 @@ class RegistroView:
                         conexion.commit()
                         self.mensaje.value = "¡Registro exitoso!"
                         self.mensaje.color = "green"
-
+                        self.page.go("/login")
 
                     conexion.close()
 
