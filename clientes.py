@@ -145,6 +145,7 @@ class ClientesView:
                 ft.Container(
                     padding=20,
                     content=ft.Column([
+                        ft.Row([ft.ElevatedButton("Cerrar sesion",on_click=lambda e: self.page.go("/login"),bgcolor="#8B0000",color="white")]),
                         ft.Image(src="Printers Serigrafía_ISOLOGOTIPOS_B_Horizontal.png", width=250),
                         ft.Text("Gestión de Clientes", size=28, weight="bold", color="white"),
                         ft.Row([
@@ -165,7 +166,7 @@ class ClientesView:
                         self.lista_clientes,
                         ft.Divider(),
                         ft.Row([
-                            ft.ElevatedButton("Volver", on_click=lambda e: self.page.go("/login")),
+
                         ], alignment=ft.MainAxisAlignment.END, spacing=20)
                     ])
                 )
