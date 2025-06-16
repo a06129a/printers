@@ -38,20 +38,45 @@ class ClientesView:
 
         def render_clientes(clientes):
             self.lista_clientes.controls.clear()
+
             for c in clientes:
-                self.lista_clientes.controls.append(
-                    ft.Row([
+                def on_hover_handler(e):
+                    e.control.bgcolor = "#1565c0" if e.data == "true" else None
+                    e.control.update()
+
+                cliente_container = ft.Container(
+                    content=ft.Row([
                         ft.Text(c["nombre"], weight="bold", color="white"),
                         ft.Text(f"Doc: {c['Documento']}", color="white"),
                         ft.Text(f"Entrega: {c['fecha_ultima_edicion']}", color="white"),
-                        ft.ElevatedButton("Modificar", on_click=lambda e, doc=c["Documento"]: self.ir_a_costos(doc)),
-                        ft.ElevatedButton("Borrar", on_click=lambda e, id=c["id_cliente"]: borrar_cliente(id),
-                                          bgcolor="red", color="white")
-                    ])
+                        ft.Container(expand=True),  # 👉 Esto agrega espacio entre los textos y los botones
+                        ft.ElevatedButton(
+                            "Modificar",
+                            on_click=lambda e, doc=c["Documento"]: self.ir_a_costos(doc)
+                        ),
+                        ft.ElevatedButton(
+                            "Borrar",
+                            on_click=lambda e, id=c["id_cliente"]: borrar_cliente(id),
+                            bgcolor="red",
+                            color="white"
+                        )
+                    ],
+                    alignment="start",  # 👉 Alineación como en el segundo código
+                    vertical_alignment="center"  # 👉 Alineación vertical como en el segundo código
+                    ),
+                    bgcolor=None,
+                    padding=10,
+                    border_radius=5,
+                    on_hover=on_hover_handler
                 )
+
+                self.lista_clientes.controls.append(cliente_container)
+
             self.page.update()
 
+
         def agregar_cliente(e):
+            # Verificar que todos los campos estén completos
             if not all([self.nombre_input.value, self.documento_input.value,
                         self.dia_dropdown.value, self.mes_dropdown.value, self.anio_dropdown.value]):
                 self.mensaje.value = "Completa todos los campos"
@@ -59,6 +84,7 @@ class ClientesView:
                 self.page.update()
                 return
 
+            # Preparar la fecha
             dia = self.dia_dropdown.value.zfill(2)
             mes = self.mes_dropdown.value.zfill(2)
             anio = self.anio_dropdown.value[-2:]
@@ -69,18 +95,24 @@ class ClientesView:
                 cursor = conn.cursor()
                 cursor.execute("SELECT COUNT(*) FROM clientes WHERE Documento = ?", (self.documento_input.value,))
                 if cursor.fetchone()[0] > 0:
+                    # Documento ya existe
                     self.mensaje.value = "Documento ya registrado"
                     self.mensaje.color = "red"
                     self.page.update()
-                    return
+                    conn.close()
+                    return  # 👈 No continúa
 
+                # Insertar el cliente
                 cursor.execute(
                     "INSERT INTO clientes (nombre, Documento, fecha_ultima_edicion) VALUES (?, ?, ?)",
                     (self.nombre_input.value, self.documento_input.value, fecha)
                 )
+
                 conn.commit()
                 conn.close()
 
+            # Si todo salió bien, limpiar los campos
+            documento_agregado = self.documento_input.value  # 👉 Guardamos el documento antes de limpiar
             self.nombre_input.value = ""
             self.documento_input.value = ""
             self.dia_dropdown.value = None
@@ -90,6 +122,10 @@ class ClientesView:
             self.mensaje.color = "green"
             self.cargar_clientes()
             self.page.update()
+
+            # 👉 Navegar a costos
+            self.ir_a_costos(documento_agregado)
+
 
         def cambiar_lista(e):
             self.orden_filtro = (self.orden_filtro + 1) % 3
@@ -117,7 +153,7 @@ class ClientesView:
                             self.dia_dropdown,
                             self.mes_dropdown,
                             self.anio_dropdown,
-                            ft.ElevatedButton("Agregar", on_click=agregar_cliente),
+                            ft.ElevatedButton("Agregar", on_click=agregar_cliente, ),
                         ], spacing=10),
                         self.mensaje,
                         ft.Row([
