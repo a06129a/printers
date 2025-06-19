@@ -28,12 +28,12 @@ class Pantalla6View:
     def crear_controles(self):
         self.unidades_input = ft.TextField(width=200, on_change=self.validar_numeros)
         self.cinta_input = ft.TextField(width=200, on_change=self.validar_numeros)
-        self.espesor_input = ft.TextField(width=200, on_change=self.ajustar_y_actualizar)#espesor
+        self.espesor_input = ft.TextField(width=200, on_change=self.ajustar_y_actualizar)
         self.postura_input = ft.TextField(width=200, on_change=self.validar_numeros)
-        self.superficie_input = ft.TextField(width=200, read_only=True, bgcolor="#a3c9f1")#anchoxlargo/1000
-        self.ancho_input = ft.TextField(width=200, on_change=self.ajustar_y_actualizar)#ancho
-        self.largo_input = ft.TextField(width=200, on_change=self.ajustar_y_actualizar)#largo
-        self.volumen_input = ft.TextField(width=200, read_only=True, bgcolor="#a3c9f1")#anchoxlargoxespesor
+        self.superficie_input = ft.TextField(width=200, read_only=True, bgcolor="#a3c9f1")
+        self.ancho_input = ft.TextField(width=200, on_change=self.ajustar_y_actualizar)
+        self.largo_input = ft.TextField(width=200, on_change=self.ajustar_y_actualizar)
+        self.volumen_input = ft.TextField(width=200, read_only=True, bgcolor="#a3c9f1")
 
         self.cant_colores_input = ft.TextField(width=200, on_change=self.validar_numeros)
         self.colores_input = ft.TextField(width=200)
@@ -43,27 +43,12 @@ class Pantalla6View:
 
     def validar_numeros(self, e):
         valor = e.control.value
-        # Reemplaza comas por puntos
-        valor = valor.replace(",", ".")
-
-        # Elimina todos los caracteres que no sean dígitos o punto
-        valor = re.sub(r"[^0-9.]", "", valor)
-
-        # Solo permitir un punto, y que no pueda ir primero
-        if "." in valor:
-            partes = valor.split(".")
-            # Solo permite si hay al menos un número antes del punto
-            if partes[0] == "":
-                valor = ""  # Elimina todo si empieza con punto
-            else:
-                valor = partes[0] + "." + "".join(partes[1:])  # Mantiene solo el primer punto
-        e.control.value = valor
+        e.control.value = re.sub(r"[^0-9.]", "", valor)
         self.page.update()
 
     def ajustar_y_actualizar(self, e):
         self.validar_numeros(e)
         self.actualizar()
-
 
     def actualizar(self):
         try:
@@ -107,15 +92,12 @@ class Pantalla6View:
             ))
             conn.commit()
             conn.close()
-            self.page.views.append(Pantalla7View(self.page, self.documento_cliente).view())
-            self.page.update()
+            self.page.go("/pantalla7?documento_cliente=" + self.documento_cliente)
         except Exception as ex:
             print("Error al guardar presupuesto:", ex)
 
     def volver_atras(self, e):
-        from clientes_view import ClientesView
-        self.page.views.append(ClientesView(self.page).view())
-        self.page.update()
+        self.page.go("/clientes")
 
     def armar_vista(self):
         logo = ft.Image(src=self.resource_path("imagen/Printers_Serigrafía_ISOLOGOTIPOS_B_Horizontal.png"), width=150, height=75, fit=ft.ImageFit.CONTAIN)

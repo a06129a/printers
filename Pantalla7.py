@@ -3,7 +3,7 @@ import flet as ft
 class Pantalla7View:
     def __init__(self, page: ft.Page, documento_cliente):
         self.page = page
-        self.documento_cliente = documento_cliente
+        self.documento_cliente = str(documento_cliente)  # Convertir a cadena de texto
 
     def texto_bloque(self, label):
         return ft.Container(
@@ -147,7 +147,7 @@ class Pantalla7View:
                 self.divisor(),
 
                 ft.Row([
-                    ft.ElevatedButton("Atrás", bgcolor="#ffffff", height=40, width=150, on_click=lambda e: self.page.go("/pantalla6")),
+                    ft.ElevatedButton("Atrás", bgcolor="#ffffff", height=40, width=150, on_click=lambda e: self.page.go("/pantalla6?documento_cliente=" + self.documento_cliente)),
                     ft.ElevatedButton("Siguiente", bgcolor="#ffffff", height=40, width=150, on_click=lambda e: self.page.go("/costos")),
                 ], alignment=ft.MainAxisAlignment.END)
             ]),
