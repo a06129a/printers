@@ -24,7 +24,16 @@ class Pantalla6View:
             base_path = os.path.abspath(".")
         return os.path.join(base_path, relative_path)
 
+
     def view(self):
+        def solo_numeros_handler():
+            def handler(e):
+                valor = e.control.value
+                nuevo_valor = ''.join(filter(str.isdigit, valor))
+                if valor != nuevo_valor:
+                    e.control.value = nuevo_valor
+                    e.control.update()
+            return handler
         logo = ft.Image(src=self.resource_path("imagen/Printers_Serigrafía_ISOLOGOTIPOS_B_Horizontal.png"), width=150, height=75, fit=ft.ImageFit.CONTAIN)
         header = ft.Row([
             logo,
@@ -34,23 +43,24 @@ class Pantalla6View:
             ft.Icon(name="account_circle", size=40, color="black"),
         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
 
+
         datos_pliego = ft.Container(
             content=ft.Column([
                 ft.Text("Datos de pliego", weight="bold", italic=True, color="white", size=18),
                 ft.Row([
                     ft.Column([
-                        ft.Row([self.texto_bloque("Unidades"), ft.TextField(width=200)]),
-                        ft.Row([self.texto_bloque("Cinta CM"), ft.TextField(width=200)]),
-                        ft.Row([self.texto_bloque("Espesor"), ft.TextField(width=200)]),
+                        ft.Row([self.texto_bloque("Unidades"), ft.TextField(width=200, on_change=solo_numeros_handler())]),#s
+                        ft.Row([self.texto_bloque("Cinta (cm)"), ft.TextField(width=200, on_change=solo_numeros_handler())]),#s
+                        ft.Row([self.texto_bloque("Espesor"), ft.TextField(width=200, on_change=solo_numeros_handler())]),#s
                     ]),
                     ft.Column([
-                        ft.Row([self.texto_bloque("Postura"), ft.TextField(width=200)]),
-                        ft.Row([self.texto_bloque("Superficie"), ft.TextField(width=200)]),
+                        ft.Row([self.texto_bloque("Postura"), ft.TextField(width=200, on_change=solo_numeros_handler())]),#s
+                        ft.Row([self.texto_bloque("Superficie"), ft.TextField(width=200, on_change=solo_numeros_handler())]),#auto
                     ]),
                     ft.Column([
-                        ft.Row([self.texto_bloque("Ancho (cm)"), ft.TextField(width=200)]),
-                        ft.Row([self.texto_bloque("Largo (cm)"), ft.TextField(width=200)]),
-                        ft.Row([self.texto_bloque("Volumen"), ft.TextField(width=200)]),
+                        ft.Row([self.texto_bloque("Ancho (cm)"), ft.TextField(width=200, on_change=solo_numeros_handler())]),#s
+                        ft.Row([self.texto_bloque("Largo (cm)"), ft.TextField(width=200, on_change=solo_numeros_handler())]),#s
+                        ft.Row([self.texto_bloque("Volumen"), ft.TextField(width=200, on_change=solo_numeros_handler())]),#auto
                     ]),
                 ], spacing=30)
             ])
@@ -61,15 +71,15 @@ class Pantalla6View:
                 ft.Text("Impresión", weight="bold", italic=True, color="white", size=18),
                 ft.Row([
                     ft.Column([
-                        ft.Row([self.texto_bloque("Cant. Colores"), ft.TextField(width=200)]),
-                        ft.Row([self.texto_bloque("Pliegos"), ft.Dropdown(width=200, options=[])]),
+                        ft.Row([self.texto_bloque("Cant. Colores"), ft.TextField(width=200, on_change=solo_numeros_handler())]),#s
+                        ft.Row([self.texto_bloque("Pliegos"), ft.Dropdown(width=200, options=[])]),#s
                     ]),
                     ft.Column([
-                        ft.Row([self.texto_bloque("Colores"), ft.TextField(width=200)]),
-                        ft.Row([self.texto_bloque("Pasadas"), ft.TextField(width=200)]),
+                        ft.Row([self.texto_bloque("Colores"), ft.TextField(width=200, on_change=solo_numeros_handler())]),#t
+                        ft.Row([self.texto_bloque("Pasadas"), ft.TextField(width=200, on_change=solo_numeros_handler())]),#s
                     ]),
                     ft.Column([
-                        ft.Row([self.texto_bloque("Barniz"), ft.Dropdown(width=200, options=[])]),
+                        ft.Row([self.texto_bloque("Barniz"), ft.Dropdown(width=200, options=[])]),#truefalse
                     ])
                 ], spacing=30)
             ])
