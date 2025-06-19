@@ -16,9 +16,8 @@ class ClientesView:
 
     def ir_a_costos(self, documento):
         self.page.views.clear()
-        self.page.views.append(Pantalla6View(self.page, documento))
+        self.page.views.append(Pantalla6View(self.page, documento).view())
         self.page.update()
-
 
     def view(self):
         self.nombre_input = ft.TextField(label="Nombre", width=200, on_change=self.capitalizar_nombre)

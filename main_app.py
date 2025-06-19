@@ -23,10 +23,11 @@ class MainApp:
         elif self.page.route == "/clientes":
             self.page.views.append(ClientesView(self.page).view())
         elif self.page.route == "/pantalla6":
-            documento = self.page.client_storage.get("documento_cliente") or "SIN_DOCUMENTO"
-            self.page.views.append(Pantalla6View(self.page, documento))
+            documento_cliente = self.page.route_params.get("documento_cliente")
+            self.page.views.append(Pantalla6View(self.page, documento_cliente).view())
         elif self.page.route == "/pantalla7":
-            self.page.views.append(Pantalla7View(self.page).view())
+            documento_cliente = self.page.route_params.get("documento_cliente")
+            self.page.views.append(Pantalla7View(self.page, documento_cliente).view())
         elif self.page.route == "/costos":
             self.page.views.append(CostosView(self.page).view())
         elif self.page.route == "/orden_pedido":

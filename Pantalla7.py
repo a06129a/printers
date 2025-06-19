@@ -1,8 +1,9 @@
 import flet as ft
 
 class Pantalla7View:
-    def __init__(self, page: ft.Page):
+    def __init__(self, page: ft.Page, documento_cliente):
         self.page = page
+        self.documento_cliente = documento_cliente
 
     def texto_bloque(self, label):
         return ft.Container(
