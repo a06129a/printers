@@ -28,12 +28,12 @@ class Pantalla6View:
     def crear_controles(self):
         self.unidades_input = ft.TextField(width=200, on_change=self.validar_numeros)
         self.cinta_input = ft.TextField(width=200, on_change=self.validar_numeros)
-        self.espesor_input = ft.TextField(width=200, on_change=self.ajustar_y_actualizar)
+        self.espesor_input = ft.TextField(width=200, on_change=self.ajustar_y_actualizar)#espesor
         self.postura_input = ft.TextField(width=200, on_change=self.validar_numeros)
-        self.superficie_input = ft.TextField(width=200, read_only=True, bgcolor="#a3c9f1")
-        self.ancho_input = ft.TextField(width=200, on_change=self.ajustar_y_actualizar)
-        self.largo_input = ft.TextField(width=200, on_change=self.ajustar_y_actualizar)
-        self.volumen_input = ft.TextField(width=200, read_only=True, bgcolor="#a3c9f1")
+        self.superficie_input = ft.TextField(width=200, read_only=True, bgcolor="#a3c9f1")#anchoxlargo/1000
+        self.ancho_input = ft.TextField(width=200, on_change=self.ajustar_y_actualizar)#ancho
+        self.largo_input = ft.TextField(width=200, on_change=self.ajustar_y_actualizar)#largo
+        self.volumen_input = ft.TextField(width=200, read_only=True, bgcolor="#a3c9f1")#anchoxlargoxespesor
 
         self.cant_colores_input = ft.TextField(width=200, on_change=self.validar_numeros)
         self.colores_input = ft.TextField(width=200)
@@ -43,12 +43,27 @@ class Pantalla6View:
 
     def validar_numeros(self, e):
         valor = e.control.value
-        e.control.value = re.sub(r"[^0-9.]", "", valor)
+        # Reemplaza comas por puntos
+        valor = valor.replace(",", ".")
+
+        # Elimina todos los caracteres que no sean dígitos o punto
+        valor = re.sub(r"[^0-9.]", "", valor)
+
+        # Solo permitir un punto, y que no pueda ir primero
+        if "." in valor:
+            partes = valor.split(".")
+            # Solo permite si hay al menos un número antes del punto
+            if partes[0] == "":
+                valor = ""  # Elimina todo si empieza con punto
+            else:
+                valor = partes[0] + "." + "".join(partes[1:])  # Mantiene solo el primer punto
+        e.control.value = valor
         self.page.update()
 
     def ajustar_y_actualizar(self, e):
         self.validar_numeros(e)
         self.actualizar()
+
 
     def actualizar(self):
         try:
