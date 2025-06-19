@@ -7,7 +7,6 @@ class CostosView:
     
     def __init__(self, page: ft.Page):
         self.page = page
-        # Este texto mostrará mensajes al usuario
         self.mensaje_guardado = ft.Text(value="", color="green", weight="bold")
 
     def label(self, texto):
@@ -32,6 +31,31 @@ class CostosView:
         ]}
 
         mano_obra = ft.TextField(width=200, border_radius=25)
+
+        def actualizar_subtotal(e=None):
+            total = 0
+            campos_a_sumar = [
+                "varios", "material", "pelicula", "tinta", "shablon", "barniz",
+                "corte", "troquel", "armado", "troquelado", "doblado", "cinta",
+                "horas", "empleados", "mano_obra"
+            ]
+            for nombre in campos_a_sumar:
+                try:
+                    if nombre == "mano_obra":
+                        valor = float(mano_obra.value or 0)
+                    else:
+                        valor = float(inputs[nombre].value or 0)
+                    total += valor
+                except ValueError:
+                    pass  
+
+            subtotal.value = str(round(total, 2))
+            self.page.update()
+
+        for campo in inputs.values():
+            campo.on_change = actualizar_subtotal
+
+        mano_obra.on_change = actualizar_subtotal
         subtotal = ft.TextField(width=100)
         margen = ft.TextField(width=100)
         total_ventas = ft.TextField(width=100)
@@ -39,13 +63,12 @@ class CostosView:
         def resource_path(relative_path):
             """ Obtener la ruta absoluta a un recurso, funciona tanto en dev como en ejecutable """
             try:
-                base_path = sys._MEIPASS  # cuando está empaquetado con PyInstaller
+                base_path = sys._MEIPASS  
             except Exception:
                 base_path = os.path.abspath(".")
 
             return os.path.join(base_path, relative_path)
 
-    # --- Consultar la base de datos para obtener los datos existentes ---
         conn = get_connection()
         if conn and documento_cliente != "Documento no disponible":
             cursor = conn.cursor()
@@ -61,20 +84,17 @@ class CostosView:
             conn.close()
 
             if fila:
-                # Asignar valores a los inputs (convertir a str porque TextField usa strings)
                 columnas = [
                     "varios", "material", "pelicula", "tinta", "shablon", "barniz",
                     "corte", "troquel", "armado", "troquelado", "doblado", "cinta",
                     "horas", "empleados"
                 ]
                 for i, col in enumerate(columnas):
+                    actualizar_subtotal()  
                     if fila[i] is not None:
                         inputs[col].value = str(fila[i])
             
-            # Asignar mano_obra, subtotal, margen, total_ventas si están en la tabla
-            # Si no los tenés guardados, podés dejarlos vacíos o 0.
-            # Suponiendo que mano_obra, subtotal, margen, total_ventas no están en esta consulta,
-            # podés agregar la consulta para esos campos también o dejarlos vacíos.
+
                 mano_obra.value = ""  
                 subtotal.value = ""
                 margen.value = ""
@@ -132,15 +152,26 @@ class CostosView:
                     conn.commit()
                     conn.close()
 
-                    # Aquí actualizo el texto para mostrar el mensaje
                     self.mensaje_guardado.value = "Los datos se han guardado correctamente."
                     self.page.update()
 
-                    # Opcional: limpiar el mensaje después de 3 segundos
                     def limpiar_mensaje():
                         self.mensaje_guardado.value = ""
                         self.page.update()
                     self.page.timer(3, limpiar_mensaje)
+                    
+        def calcular_total(e=None):
+            try:
+                sub = float(subtotal.value or 0)
+                marg = float(margen.value or 0)
+                total = sub + (sub * marg / 100)
+                total_ventas.value = f"{total:.2f}"
+            except:
+                total_ventas.value = "Error"
+            self.page.update()
+
+        subtotal.on_change = calcular_total
+        margen.on_change = calcular_total
 
         return ft.View(
             route="/costos",
@@ -163,7 +194,7 @@ class CostosView:
                         ft.Row([self.label("Valor Corte:"), inputs["corte"], self.label("Valor troquel:"), inputs["troquel"]], spacing=10),
                         ft.Row([self.label("Valor Armado:"), inputs["armado"], self.label("Valor troquelado:"), inputs["troquelado"]], spacing=10),
                         ft.Row([self.label("Valor Doblado:"), inputs["doblado"], self.label("Aplicacion cinta:"), inputs["cinta"]], spacing=10),
-                        ft.Row([self.label("Cantidad horas:"), inputs["horas"], self.label("Barniz:"), ft.Switch(value=False)], spacing=10),
+                        ft.Row([self.label("Cantidad horas:"), inputs["horas"], self.label("Barniz:"), inputs["cinta"]], spacing=10),
 
                         ft.Row([
                              ft.Container(
@@ -175,7 +206,6 @@ class CostosView:
 
                         ft.Divider(),
 
-                        # Mensaje de guardado aquí
                         self.mensaje_guardado,
 
                         ft.Row([

@@ -11,39 +11,82 @@ class Pantalla6View:
         self.documento_cliente = documento_cliente
         self.page.bgcolor = "#002591"
         self.page.scroll = ft.ScrollMode.AUTO
-        self.contenedor_pagina = ft.Container()  # Inicializar el atributo aquí
+        self.contenedor_pagina = ft.Container()
+
+        # Leer datos del cliente si existen
+        self.cargar_datos_existentes()
+
         self.crear_controles()
         self.armar_vista()
+
+    def cargar_datos_existentes(self):
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT Unidades, Pliego_Ancho, Unidad_Largo, Unidad_Superficie, Cinta_Espesor, Cinta_Volumen,
+                   Pliego_Posturas, Cinta_CM, Impre_Cant_Color, Impre_Colores, Impre_Pliegos,
+                   Impre_Pasadas, Impre_Barniz
+            FROM Pliegues
+            WHERE Documento = ?
+        """, (self.documento_cliente,))
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            (self.db_unidades, self.db_ancho, self.db_largo, self.db_superficie, self.db_espesor, self.db_volumen,
+             self.db_postura, self.db_cinta, self.db_cant_colores, self.db_colores, self.db_pliegos,
+             self.db_pasadas, self.db_barniz) = row
+        else:
+            self.db_unidades = self.db_ancho = self.db_largo = self.db_superficie = self.db_espesor = self.db_volumen = 0
+            self.db_postura = self.db_cinta = self.db_cant_colores = self.db_pasadas = self.db_barniz = 0
+            self.db_colores = ""
+            self.db_pliegos = 0
 
     def view(self):
         return ft.View(
             route="/pantalla6",
             controls=[
-                self.contenedor_pagina  # asegurate que este atributo esté definido
+                self.contenedor_pagina
             ],
             scroll=ft.ScrollMode.AUTO,
             bgcolor="#002591"
         )
 
     def crear_controles(self):
-        self.unidades_input = ft.TextField(width=200, on_change=self.validar_numeros)
-        self.cinta_input = ft.TextField(width=200, on_change=self.validar_numeros)
-        self.espesor_input = ft.TextField(width=200, on_change=self.ajustar_y_actualizar)
-        self.postura_input = ft.TextField(width=200, on_change=self.validar_numeros)
-        self.superficie_input = ft.TextField(width=200, read_only=True, bgcolor="#a3c9f1")
-        self.ancho_input = ft.TextField(width=200, on_change=self.ajustar_y_actualizar)
-        self.largo_input = ft.TextField(width=200, on_change=self.ajustar_y_actualizar)
-        self.volumen_input = ft.TextField(width=200, read_only=True, bgcolor="#a3c9f1")
+        self.unidades_input = ft.TextField(width=200, value=str(self.db_unidades), on_change=self.validar_numeros)
+        self.cinta_input = ft.TextField(width=200, value=str(self.db_cinta), on_change=self.validar_numeros)
+        self.espesor_input = ft.TextField(width=200, value=str(self.db_espesor), on_change=self.ajustar_y_actualizar)
+        self.postura_input = ft.TextField(width=200, value=str(self.db_postura), on_change=self.validar_numeros)
+        self.superficie_input = ft.TextField(width=200, value=str(self.db_superficie), read_only=True, bgcolor="#a3c9f1")
+        self.ancho_input = ft.TextField(width=200, value=str(self.db_ancho), on_change=self.ajustar_y_actualizar)
+        self.largo_input = ft.TextField(width=200, value=str(self.db_largo), on_change=self.ajustar_y_actualizar)
+        self.volumen_input = ft.TextField(width=200, value=str(self.db_volumen), read_only=True, bgcolor="#a3c9f1")
 
-        self.cant_colores_input = ft.TextField(width=200, on_change=self.validar_numeros)
-        self.colores_input = ft.TextField(width=200)
-        self.pasadas_input = ft.TextField(width=200, on_change=self.validar_numeros)
-        self.barniz_dropdown = ft.Dropdown(width=200, options=[ft.dropdown.Option("Si"), ft.dropdown.Option("No")], bgcolor="#ffffff")
-        self.pliegos_dropdown = ft.Dropdown(width=200, options=[ft.dropdown.Option("Si"), ft.dropdown.Option("No")], bgcolor="#ffffff")
+        self.cant_colores_input = ft.TextField(width=200, value=str(self.db_cant_colores), on_change=self.validar_numeros)
+        self.colores_input = ft.TextField(width=200, value=self.db_colores)
+        self.pasadas_input = ft.TextField(width=200, value=str(self.db_pasadas), on_change=self.validar_numeros)
+        self.barniz_dropdown = ft.Dropdown(width=200,
+            options=[ft.dropdown.Option("Si"), ft.dropdown.Option("No")],
+            value="Si" if self.db_barniz == 1 else "No",
+            bgcolor="#ffffff"
+        )
+        self.pliegos_dropdown = ft.Dropdown(width=200,
+            options=[ft.dropdown.Option("Si"), ft.dropdown.Option("No")],
+            value="Si" if self.db_pliegos == 1 else "No",
+            bgcolor="#ffffff"
+        )
 
     def validar_numeros(self, e):
         valor = e.control.value
-        e.control.value = re.sub(r"[^0-9.]", "", valor)
+        valor = valor.replace(",", ".")
+        valor = re.sub(r"[^0-9.]", "", valor)
+        if "." in valor:
+            partes = valor.split(".")
+            if partes[0] == "":
+                valor = ""
+            else:
+                valor = partes[0] + "." + "".join(partes[1:])
+        e.control.value = valor
         self.page.update()
 
     def ajustar_y_actualizar(self, e):
@@ -55,13 +98,16 @@ class Pantalla6View:
             ancho = float(self.ancho_input.value or 0)
             largo = float(self.largo_input.value or 0)
             espesor = float(self.espesor_input.value or 0)
-            superficie = ancho * largo
-            volumen = superficie * espesor
+
+            superficie = (ancho * largo) / 10000
+            volumen = ancho * largo * espesor
+
             self.superficie_input.value = f"{superficie:.2f}"
             self.volumen_input.value = f"{volumen:.2f}"
+
             self.page.update()
-        except:
-            pass
+        except Exception as ex:
+            print("Error en actualizar:", ex)
 
     def guardar_datos(self, e):
         self.actualizar()
@@ -70,13 +116,14 @@ class Pantalla6View:
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT OR REPLACE INTO Pliegues (
-                    Documento, Pliego_Ancho, Unidad_Largo, Unidad_Superficie,
+                    Documento, Unidades, Pliego_Ancho, Unidad_Largo, Unidad_Superficie,
                     Cinta_Espesor, Cinta_Volumen, Pliego_Posturas, Cinta_CM,
                     Impre_Cant_Color, Impre_Colores, Impre_Pliegos,
                     Impre_Pasadas, Impre_Barniz
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 self.documento_cliente,
+                int(self.unidades_input.value or 0),
                 float(self.ancho_input.value or 0),
                 float(self.largo_input.value or 0),
                 float(self.superficie_input.value or 0),
@@ -92,21 +139,32 @@ class Pantalla6View:
             ))
             conn.commit()
             conn.close()
-            self.page.go("/pantalla7?documento_cliente=" + self.documento_cliente)
+
+            # Paso volumen y superficie a client_storage para Pantalla7
+            self.page.client_storage.set("cinta_volumen", self.volumen_input.value)
+            self.page.client_storage.set("unidad_superficie", self.superficie_input.value)
+            self.page.client_storage.set("documento_cliente", self.documento_cliente)
+
+            self.page.go("/pantalla7")
+
         except Exception as ex:
             print("Error al guardar presupuesto:", ex)
 
     def volver_atras(self, e):
+        from clientes_view import ClientesView
         self.page.go("/clientes")
 
     def armar_vista(self):
         logo = ft.Image(src=self.resource_path("imagen/Printers_Serigrafía_ISOLOGOTIPOS_B_Horizontal.png"), width=150, height=75, fit=ft.ImageFit.CONTAIN)
-        btn_clientes = ft.ElevatedButton("Clientes", bgcolor="white")
-        btn_crear = ft.ElevatedButton("Crear", bgcolor="white")
-        avatar = ft.Icon(name="account_circle", size=40, color="black")
 
         header = ft.Row(
-            controls=[logo, ft.Container(expand=True), btn_clientes, btn_crear, avatar],
+            controls=[
+                logo,
+                ft.Container(expand=True),
+                ft.ElevatedButton("Clientes", bgcolor="white", on_click=self.volver_atras),
+                ft.ElevatedButton("Crear", bgcolor="white", on_click=self.guardar_datos),
+                ft.Icon(name="account_circle", size=40, color="black")
+            ],
             alignment=ft.MainAxisAlignment.SPACE_BETWEEN
         )
 
