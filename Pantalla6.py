@@ -13,9 +13,7 @@ class Pantalla6View:
         self.page.scroll = ft.ScrollMode.AUTO
         self.contenedor_pagina = ft.Container()
 
-        # Leer datos del cliente si existen
         self.cargar_datos_existentes()
-
         self.crear_controles()
         self.armar_vista()
 
@@ -25,7 +23,7 @@ class Pantalla6View:
         cursor.execute("""
             SELECT Unidades, Pliego_Ancho, Unidad_Largo, Unidad_Superficie, Cinta_Espesor, Cinta_Volumen,
                    Pliego_Posturas, Cinta_CM, Impre_Cant_Color, Impre_Colores, Impre_Pliegos,
-                   Impre_Pasadas, Impre_Barniz
+                   Impre_Pasadas, Impre_Barniz, Pliegue
             FROM Pliegues
             WHERE Documento = ?
         """, (self.documento_cliente,))
@@ -35,10 +33,10 @@ class Pantalla6View:
         if row:
             (self.db_unidades, self.db_ancho, self.db_largo, self.db_superficie, self.db_espesor, self.db_volumen,
              self.db_postura, self.db_cinta, self.db_cant_colores, self.db_colores, self.db_pliegos,
-             self.db_pasadas, self.db_barniz) = row
+             self.db_pasadas, self.db_barniz, self.db_pliegue) = row
         else:
             self.db_unidades = self.db_ancho = self.db_largo = self.db_superficie = self.db_espesor = self.db_volumen = 0
-            self.db_postura = self.db_cinta = self.db_cant_colores = self.db_pasadas = self.db_barniz = 0
+            self.db_postura = self.db_cinta = self.db_cant_colores = self.db_pasadas = self.db_barniz = self.db_pliegue = 0
             self.db_colores = ""
             self.db_pliegos = 0
 
@@ -61,7 +59,6 @@ class Pantalla6View:
         self.ancho_input = ft.TextField(width=200, value=str(self.db_ancho), on_change=self.ajustar_y_actualizar)
         self.largo_input = ft.TextField(width=200, value=str(self.db_largo), on_change=self.ajustar_y_actualizar)
         self.volumen_input = ft.TextField(width=200, value=str(self.db_volumen), read_only=True, bgcolor="#a3c9f1")
-
         self.cant_colores_input = ft.TextField(width=200, value=str(self.db_cant_colores), on_change=self.validar_numeros)
         self.colores_input = ft.TextField(width=200, value=self.db_colores)
         self.pasadas_input = ft.TextField(width=200, value=str(self.db_pasadas), on_change=self.validar_numeros)
@@ -70,11 +67,7 @@ class Pantalla6View:
             value="Si" if self.db_barniz == 1 else "No",
             bgcolor="#ffffff"
         )
-        self.pliegos_dropdown = ft.Dropdown(width=200,
-            options=[ft.dropdown.Option("Si"), ft.dropdown.Option("No")],
-            value="Si" if self.db_pliegos == 1 else "No",
-            bgcolor="#ffffff"
-        )
+        self.pliegos_input = ft.TextField(width=200, value=str(self.db_pliegue), on_change=self.validar_numeros)
 
     def validar_numeros(self, e):
         valor = e.control.value
@@ -119,8 +112,8 @@ class Pantalla6View:
                     Documento, Unidades, Pliego_Ancho, Unidad_Largo, Unidad_Superficie,
                     Cinta_Espesor, Cinta_Volumen, Pliego_Posturas, Cinta_CM,
                     Impre_Cant_Color, Impre_Colores, Impre_Pliegos,
-                    Impre_Pasadas, Impre_Barniz
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    Impre_Pasadas, Impre_Barniz, Pliegue
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 self.documento_cliente,
                 int(self.unidades_input.value or 0),
@@ -133,17 +126,18 @@ class Pantalla6View:
                 float(self.cinta_input.value or 0),
                 int(self.cant_colores_input.value or 0),
                 self.colores_input.value or "",
-                1 if self.pliegos_dropdown.value == "Si" else 0,
+                int(self.pliegos_input.value or 0),
                 int(self.pasadas_input.value or 0),
-                1 if self.barniz_dropdown.value == "Si" else 0
+                1 if self.barniz_dropdown.value == "Si" else 0,
+                int(self.pliegos_input.value or 0)
             ))
             conn.commit()
             conn.close()
 
-            # Paso volumen y superficie a client_storage para Pantalla7
             self.page.client_storage.set("cinta_volumen", self.volumen_input.value)
             self.page.client_storage.set("unidad_superficie", self.superficie_input.value)
             self.page.client_storage.set("documento_cliente", self.documento_cliente)
+            self.page.client_storage.set("pliegos", self.pliegos_input.value)
 
             self.page.go("/pantalla7")
 
@@ -196,7 +190,7 @@ class Pantalla6View:
                 ft.Row([
                     ft.Column([
                         ft.Row([self.texto_bloque("Cant. Colores"), self.cant_colores_input]),
-                        ft.Row([self.texto_bloque("Pliegos"), self.pliegos_dropdown]),
+                        ft.Row([self.texto_bloque("Pliegues"), self.pliegos_input]),
                     ]),
                     ft.Column([
                         ft.Row([self.texto_bloque("Colores"), self.colores_input]),

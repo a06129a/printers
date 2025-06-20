@@ -14,9 +14,10 @@ class Pantalla7View:
         self.page = page
         self.documento_cliente = documento_cliente
 
-        # Traer volumen y superficie desde storage
+        # Traer volumen, superficie y pliegos desde storage
         self.volumen = float(self.page.client_storage.get("cinta_volumen") or 0)
         self.superficie = float(self.page.client_storage.get("unidad_superficie") or 0)
+        self.pliegos = int(self.page.client_storage.get("pliegos") or 0)
 
         # Conexión BD
         self.conn = get_connection()
@@ -28,7 +29,8 @@ class Pantalla7View:
         self.input_precio_pet = self.entrada("0.00", 120)
         self.input_precio_pp = self.entrada("0.00", 120)
 
-        self.tabla_materiales = self.crear_tabla_materiales()
+        self.contenedor_tabla_materiales = ft.Container(content=self.crear_tabla_materiales())
+
 
     def texto_bloque(self, label):
         return ft.Container(
@@ -39,36 +41,54 @@ class Pantalla7View:
         )
 
     def entrada(self, valor, ancho):
+        def validar_input(e):
+            # Aceptar solo números y un solo punto o coma
+            valor = e.control.value
+            valor = valor.replace(",", ".")  # reemplaza coma por punto
+            nuevo = "".join(c for c in valor if c.isdigit() or c == ".")
+            if nuevo.count(".") > 1:
+                partes = nuevo.split(".", 1)
+                nuevo = partes[0] + "." + partes[1].replace(".", "")
+            e.control.value = nuevo
+            self.page.update()
+            self.actualizar_costos(e)
+
         return ft.TextField(
             value=valor,
-            width=ancho,
+            width=140,
+            height=45,
+            text_size=18,
             text_align="right",
             color="white",
             bgcolor="#1e3a8a",
             border_color="white",
-            on_change=self.actualizar_costos
+            on_change=validar_input,
+            keyboard_type="number",
+            dense=False
         )
 
+
     def fila_tabla(self, material, pe, input_precio):
-        peso_total = self.volumen * DENSIDADES[material]
+        # Fórmulas corregidas
+        peso_unitario = (self.volumen * pe) / 1000
+        total_kg = peso_unitario * self.pliegos
         precio_kg = float(input_precio.value.replace(",", ".") or 0)
-        costo_final = peso_total * precio_kg
+        costo_final = total_kg * precio_kg
 
         return ft.DataRow(cells=[
             ft.DataCell(ft.Text(material, color="white")),
-            ft.DataCell(ft.Text(f"{DENSIDADES[material]:.2f}", color="white")),
+            ft.DataCell(ft.Text(f"{pe:.2f}", color="white")),
             ft.DataCell(input_precio),
-            ft.DataCell(ft.Text(f"{peso_total:.3f} kg", color="white")),
-            ft.DataCell(ft.Text(f"{peso_total:.3f} kg", color="white")),
+            ft.DataCell(ft.Text(f"{peso_unitario:.3f} kg", color="white")),
+            ft.DataCell(ft.Text(f"{total_kg:.3f} kg", color="white")),
             ft.DataCell(ft.Text(f"${costo_final:.2f}", color="white"))
         ])
 
     def actualizar_costos(self, e):
-        # reconstruir la tabla con nuevos valores
-        self.tabla_materiales = self.crear_tabla_materiales()
-        # la tabla está en controls[2] de contenido
-        self.page.views[-1].controls[2].content.controls[2] = self.tabla_materiales
+        nueva_tabla = self.crear_tabla_materiales()
+        self.contenedor_tabla_materiales.content = nueva_tabla
         self.page.update()
+
 
     def crear_tabla_materiales(self):
         return ft.DataTable(
@@ -98,10 +118,11 @@ class Pantalla7View:
             ]:
                 precio_kg = float(input_precio.value.replace(",", ".") or 0)
                 densidad = DENSIDADES[material]
-                peso_total = self.volumen * densidad
-                precio_total = peso_total * precio_kg
+                peso_unitario = (self.volumen * densidad) / 1000
+                total_kg = peso_unitario * self.pliegos
+                precio_total = total_kg * precio_kg
 
-                if precio_kg > 0:  # Guardar solo si se ingresó precio
+                if precio_kg > 0:
                     self.cursor.execute("""
                         INSERT INTO Materiales (documento_cliente, material, volumen, superficie, densidad, peso_total, precio_kg, precio_total)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -111,7 +132,7 @@ class Pantalla7View:
                         self.volumen,
                         self.superficie,
                         densidad,
-                        peso_total,
+                        total_kg,
                         precio_kg,
                         precio_total
                     ))
@@ -150,8 +171,7 @@ class Pantalla7View:
                 ]),
 
                 self.seccion_titulo("Costo Material"),
-
-                self.tabla_materiales,
+                self.contenedor_tabla_materiales,
 
                 ft.Row([
                     ft.ElevatedButton("Atrás", bgcolor="#ffffff", height=40, width=150, on_click=lambda e: self.page.go("/pantalla6")),
