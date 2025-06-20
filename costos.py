@@ -1,6 +1,7 @@
 import flet as ft
 import os
 import sys
+import re
 from conexion_bd import get_connection
 
 class CostosView:
@@ -17,14 +18,38 @@ class CostosView:
             border_radius=25,
             width=180
         )
+    def validar_numeros(self, e):
+        valor_original = e.control.value
+        valor_limpio = re.sub(r"[^0-9,\.]", "", valor_original)
+        valor_limpio = valor_limpio.replace(",", ".")
+
+        partes = valor_limpio.split(".")
+        if len(partes) > 2:
+            valor_limpio = partes[0] + "." + "".join(partes[1:])
+
+        if valor_original != valor_limpio:
+            e.control.value = valor_limpio
+            e.control.update()  # 👈 Importante: actualiza ese campo específico
 
     def view(self):
         documento_cliente = self.page.client_storage.get("documento_cliente")
         if not documento_cliente:
             documento_cliente = "Documento no disponible"
     
-        crear_input = lambda: ft.TextField(width=150, border_radius=25)
-        inputs = {nombre: crear_input() for nombre in [
+
+        def crear_input_con_validacion(nombre):
+            def on_change_event(e):
+                self.validar_numeros(e)
+                actualizar_subtotal()
+
+            return ft.TextField(
+                width=150,
+                border_radius=25,
+                keyboard_type=ft.KeyboardType.NUMBER,
+                on_change=on_change_event
+            )
+
+        self.inputs = {nombre: crear_input_con_validacion(nombre) for nombre in [
             "varios", "material", "pelicula", "tinta", "shablon", "barniz",
             "corte", "troquel", "armado", "troquelado", "doblado", "cinta",
             "horas", "empleados"
@@ -44,16 +69,13 @@ class CostosView:
                     if nombre == "mano_obra":
                         valor = float(mano_obra.value or 0)
                     else:
-                        valor = float(inputs[nombre].value or 0)
+                        valor = float(self.inputs[nombre].value or 0)
                     total += valor
                 except ValueError:
                     pass  
 
             subtotal.value = str(round(total, 2))
             self.page.update()
-
-        for campo in inputs.values():
-            campo.on_change = actualizar_subtotal
 
         mano_obra.on_change = actualizar_subtotal
         subtotal = ft.TextField(width=100)
@@ -92,7 +114,7 @@ class CostosView:
                 for i, col in enumerate(columnas):
                     actualizar_subtotal()  
                     if fila[i] is not None:
-                        inputs[col].value = str(fila[i])
+                        self.inputs[col].value = str(fila[i])
             
 
                 mano_obra.value = ""  
@@ -100,7 +122,7 @@ class CostosView:
                 margen.value = ""
                 total_ventas.value = ""
         def guardar_datos(e):
-            datos = {k: v.value for k, v in inputs.items()}
+            datos = {k: v.value for k, v in self.inputs.items()}
             datos.update({
                 "mano_obra": mano_obra.value,
                 "subtotal": subtotal.value,
@@ -188,13 +210,13 @@ class CostosView:
                             content=ft.Text("Costos", size=32, weight="bold", color="black",
                                             style=ft.TextStyle(decoration=ft.TextDecoration.UNDERLINE))
                         ),
-                        ft.Row([self.label("Varios:"), inputs["varios"], self.label("Material:"), inputs["material"]], spacing=10),
-                        ft.Row([self.label("Valor Película:"), inputs["pelicula"], self.label("Valor Tinta:"), inputs["tinta"]], spacing=10),
-                        ft.Row([self.label("Shablón:"), inputs["shablon"], self.label("Cant. empleados:"), inputs["empleados"]], spacing=10),
-                        ft.Row([self.label("Valor Corte:"), inputs["corte"], self.label("Valor troquel:"), inputs["troquel"]], spacing=10),
-                        ft.Row([self.label("Valor Armado:"), inputs["armado"], self.label("Valor troquelado:"), inputs["troquelado"]], spacing=10),
-                        ft.Row([self.label("Valor Doblado:"), inputs["doblado"], self.label("Aplicacion cinta:"), inputs["cinta"]], spacing=10),
-                        ft.Row([self.label("Cantidad horas:"), inputs["horas"], self.label("Barniz:"), inputs["cinta"]], spacing=10),
+                        ft.Row([self.label("Varios:"), self.inputs["varios"], self.label("Material:"), self.inputs["material"]], spacing=10),
+                        ft.Row([self.label("Valor Película:"), self.inputs["pelicula"], self.label("Valor Tinta:"), self.inputs["tinta"]], spacing=10),
+                        ft.Row([self.label("Shablón:"), self.inputs["shablon"], self.label("Cant. empleados:"), self.inputs["empleados"]], spacing=10),
+                        ft.Row([self.label("Valor Corte:"), self.inputs["corte"], self.label("Valor troquel:"), self.inputs["troquel"]], spacing=10),
+                        ft.Row([self.label("Valor Armado:"), self.inputs["armado"], self.label("Valor troquelado:"), self.inputs["troquelado"]], spacing=10),
+                        ft.Row([self.label("Valor Doblado:"), self.inputs["doblado"], self.label("Aplicacion cinta:"), self.inputs["cinta"]], spacing=10),
+                        ft.Row([self.label("Cantidad horas:"), self.inputs["horas"], self.label("Barniz:"), self.inputs["cinta"]], spacing=10),
 
                         ft.Row([
                              ft.Container(
