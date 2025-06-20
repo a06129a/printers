@@ -1,7 +1,7 @@
 import flet as ft
 from conexion_bd import get_connection
 import re
-
+from costos import CostosView
 class PantallaCostos:
     def __init__(self, page: ft.Page,documento_cliente):
         self.page = page
@@ -9,8 +9,6 @@ class PantallaCostos:
         self.page.scroll = ft.ScrollMode.ALWAYS
         self.page.bgcolor = "#0277bd"
         self.documento_cliente=documento_cliente
-        self.conn = get_connection()
-        self.cursor = self.conn.cursor()
 
         # Variables de entrada
         self.ancho = ft.TextField(label="Ancho (cm)", width=100, on_change=self.validar_y_actualizar)
@@ -70,23 +68,49 @@ class PantallaCostos:
 
         self.page.add(self.view())
         self.cargar_datos()
+
+    def ir_a_costos(self, e):
+        self.mandar_datos(e)
+        self.mandar_datos_materiales(e)
+        self.page.client_storage.set("documento_cliente", self.documento_cliente)  # Guardar documento
+        self.page.go("/costos")  # Cambiás de vista
+
     def mandar_datos(self, e):
         try:
-            self.cursor.execute("""INSERT OR REPLACE Pliegues (Pliego_Ancho, Unidad_Largo, Cinta_Espesor, Unidad_Superficie, Cinta_Volumen, Pliego_Posturas, Impre_Pliegos, Impre_Pasadas, Impre_Cant_Color) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",(
-                self.ancho.value,
-                self.largo.value,
-                self.espesor.value,
-                self.superficie.value,
-                self.volumen.value,
-                self.unidades_posturas.value,
-                self.pliegos.value,
-                self.pasadas.value,
-                self.colores.value
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+            INSERT OR REPLACE INTO Pliegues (
+                Documento, Unidades, Pliegue, Pliego_Ancho, Pliego_Posturas,
+                Unidad_Largo, Unidad_Superficie, Cinta_Espesor, Cinta_Volumen,
+                Cinta_CM, Impre_Cant_Color, Impre_Pliegos, Impre_Pasadas
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+            self.documento_cliente,
+            0,  # Unidades
+            0,  # Pliegue
+            float(self.ancho.value or 0),
+            float(self.unidades_posturas.value or 0),
+            float(self.largo.value or 0),
+            float(self.superficie.value.replace(" cm²", "") or 0),
+            float(self.espesor.value or 0),
+            float(self.volumen.value.replace(" cm³", "") or 0),
+            0,  # Cinta_CM
+            int(self.colores.value or 0),
+            int(self.pliegos.value or 0),
+            int(self.pasadas.value or 0)
             ))
+            conn.commit()
+            conn.close()
+            print("Datos guardados exitosamente")
+        except Exception as ex:
+            print("Error al guardar los datos", ex)
     def cargar_datos(self):
         try:
-            self.cursor.execute("""SELECT Pliego_Ancho, Unidad_Largo, Cinta_Espesor, Unidad_Superficie, Cinta_Volumen, Pliego_Posturas, Impre_Pliegos, Impre_Pasadas, Impre_Cant_Color FROM Pliegues WHERE Documento = ?""", (self.documento_cliente,))
-            resultado = self.cursor.fetchone()
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("""SELECT Pliego_Ancho, Unidad_Largo, Cinta_Espesor, Unidad_Superficie, Cinta_Volumen, Pliego_Posturas, Impre_Pliegos, Impre_Pasadas, Impre_Cant_Color FROM Pliegues WHERE Documento = ?""", (self.documento_cliente,))
+            resultado = cursor.fetchone()
             if resultado:
                 self.ancho.value = str(resultado[0])
                 self.largo.value = str(resultado[1])
@@ -99,13 +123,16 @@ class PantallaCostos:
                 self.colores.value = str(resultado[8])
 
                 self.page.update()
+                conn.close()
             else:
                 print("No se encontraron datos para este cliente")
         except Exception as ex:
             print("Error al cargar datos:", ex)
         try:
-            self.cursor.execute("""SELECT Costo_impresion_Demasia_Imp, Costo_material_Peso, Costo_material_Total_Kg, Costo_material_PeCm, Costo_material_Pe, Costo_impresion_Precioxpasada, Costo_impresion_Costo_Min, Costo_impresion_Costo_Final, Costo_tinta_Tinta_Rinde, Costo_tinta_Porciento, Costo_tinta_Precioxlt, Costo_tinta_Lts_Necesarios, Costo_tinta_Costo_final, Costo_de_mano_obra_Cantpersonal, Costo_de_mano_obra_Jornal, Costo_de_mano_obra_Dias, Costo_mano_de_obra, Costo_cinta_Largo, Costo_cinta_Precio, Costo_cinta_Costo, Costo_barniz_Tinta_Rinde, Costo_barniz_Porciento, Costo_barniz_Caras, Costo_barniz_Usxlt, Costo_barniz_Lts, Costo_barniz_Costo_Finalxcm  FROM Materiales WHERE Documento = ?""", (self.documento_cliente,))
-            resultado = self.cursor.fetchone()
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("""SELECT Costo_impresion_Demasia_Imp, Costo_material_Peso, Costo_material_Total_Kg, Costo_material_PeCm, Costo_material_Pe, Costo_impresion_Precioxpasada, Costo_impresion_Costo_Min, Costo_impresion_Costo_Final, Costo_tinta_Tinta_Rinde, Costo_tinta_Porciento, Costo_tinta_Caras , Costo_tinta_Precioxlt, Costo_tinta_Lts_Necesarios, Costo_tinta_Costo_final, Costo_de_mano_obra_Cantpersonal, Costo_de_mano_obra_Jornal, Costo_de_mano_obra_Dias, Costo_mano_de_obra, Costo_cinta_Largo, Costo_cinta_Precio, Costo_cinta_Costo, Costo_barniz_Tinta_Rinde, Costo_barniz_Porciento, Costo_barniz_Caras, Costo_barniz_Usxlt, Costo_barniz_Lts, Costo_barniz_Costo_Finalxcm  FROM Materiales WHERE Documento = ?""", (self.documento_cliente,))
+            resultado = cursor.fetchone()
             if resultado:
                 self.dem_impr.value = str(resultado[0])
                 self.precio_kg.value = str(resultado[1])
@@ -137,36 +164,107 @@ class PantallaCostos:
 
 
                 self.page.update()
+                conn.close()
             else:
                 print("No se encontraron datos para este cliente")
         except Exception as ex:
             print("Error al cargar datos:", ex)
 
+    def mandar_datos_materiales(self, e):
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT OR REPLACE INTO Materiales (
+                    Documento,
+                    Costo_impresion_Demasia_Imp,
+                    Costo_material_Peso,
+                    Costo_material_Total_Kg,
+                    Costo_material_PeCm,
+                    Costo_material_Pe,
+                    Costo_impresion_Precioxpasada,
+                    Costo_impresion_Costo_Min,
+                    Costo_impresion_Costo_Final,
+                    Costo_tinta_Tinta_Rinde,
+                    Costo_tinta_Porciento,
+                    Costo_tinta_Precioxlt,
+                    Costo_tinta_Lts_Necesarios,
+                    Costo_tinta_Costo_final,
+                    Costo_de_mano_obra_Cantpersonal,
+                    Costo_de_mano_obra_Jornal,
+                    Costo_de_mano_obra_Dias,
+                    Costo_mano_de_obra,
+                    Costo_cinta_Largo,
+                    Costo_cinta_Precio,
+                    Costo_cinta_Costo,
+                    Costo_barniz_Tinta_Rinde,
+                    Costo_barniz_Porciento,
+                    Costo_barniz_Caras,
+                    Costo_barniz_Usxlt,
+                    Costo_barniz_Lts,
+                    Costo_barniz_Costo_Finalxcm
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                self.documento_cliente,
+                self.dem_impr.value,
+                self.peso.value,
+                self.total_kg.value,
+                self.precio_cm2.value,
+                self.costo_pelicula.value,
+                self.precio_pasada.value,
+                self.costo_min.value,
+                self.costo_impresion.value,
+                self.tinta_rinde.value,
+                self.tinta_porcentaje.value,
+                self.precio_tinta_litro.value,
+                self.litros_necesarios.value,
+                self.costo_tinta.value,
+                self.personal.value,
+                self.jornal.value,
+                self.dias.value,
+                self.costo_mano_obra.value,
+                self.largo_rollo.value,
+                self.precio_rollo.value,
+                self.costo_cinta.value,
+                self.tinta_rinde_barniz.value,
+                self.tinta_porcentaje_barniz.value,
+                self.tinta_caras_barniz.value,
+                self.precio_barniz_litro.value,
+                self.litros_necesarios_barniz.value,
+                self.costo_barniz.value
+            ))
+
+            # Guardar los cambios
+            conn.commit()
+            conn.close()
+        except Exception as ex:
+            print("Error al guardar datos de materiales:", ex)
+
     def actualizar(self, e):
         try:
-            ancho = float(self.ancho.value or 0)
-            largo = float(self.largo.value or 0)
-            espesor = float(self.espesor.value or 0)
-            unidades = float(self.unidades_posturas.value or 0)
-            demasia = float(self.dem_impr.value or 0) / 100
-            colores = float(self.colores.value or 0)
-            precio_kg = float(self.precio_kg.value or 0)
-            precio_cm2 = float(self.precio_cm2.value or 0)
-            precio_pasada = float(self.precio_pasada.value or 0)
-            costo_min = float(self.costo_min.value or 0)
-            tinta_rinde = float(self.tinta_rinde.value or 1)
-            tinta_pct = float(self.tinta_porcentaje.value or 100) / 100
-            tinta_caras = float(self.tinta_caras.value or 1)
-            precio_tinta_litro = float(self.precio_tinta_litro.value or 0)
-            personal = float(self.personal.value or 0)
-            jornal = float(self.jornal.value or 0)
-            dias = float(self.dias.value or 0)
-            largo_rollo = float(self.largo_rollo.value or 1)
-            precio_rollo = float(self.precio_rollo.value or 0)
-            tinta_rinde_b = float(self.tinta_rinde_barniz.value or 1)
-            tinta_pct_b = float(self.tinta_porcentaje_barniz.value or 100) / 100
-            tinta_caras_b = float(self.tinta_caras_barniz.value or 1)
-            precio_barniz_litro = float(self.precio_barniz_litro.value or 0)
+            ancho = limpiar_valor(self.ancho.value)
+            largo = limpiar_valor(self.largo.value)
+            espesor = limpiar_valor(self.espesor.value)
+            unidades = limpiar_valor(self.unidades_posturas.value)
+            demasia = limpiar_valor(self.dem_impr.value) / 100
+            colores = limpiar_valor(self.colores.value)
+            precio_kg = limpiar_valor(self.precio_kg.value)
+            precio_cm2 = limpiar_valor(self.precio_cm2.value)
+            precio_pasada = limpiar_valor(self.precio_pasada.value)
+            costo_min = limpiar_valor(self.costo_min.value)
+            tinta_rinde = limpiar_valor(self.tinta_rinde.value)
+            tinta_pct = limpiar_valor(self.tinta_porcentaje.value) / 100
+            tinta_caras = limpiar_valor(self.tinta_caras.value)
+            precio_tinta_litro = limpiar_valor(self.precio_tinta_litro.value)
+            personal = limpiar_valor(self.personal.value)
+            jornal = limpiar_valor(self.jornal.value)
+            dias = limpiar_valor(self.dias.value)
+            largo_rollo = limpiar_valor(self.largo_rollo.value)
+            precio_rollo = limpiar_valor(self.precio_rollo.value)
+            tinta_rinde_b = limpiar_valor(self.tinta_rinde_barniz.value)
+            tinta_pct_b = limpiar_valor(self.tinta_porcentaje_barniz.value) / 100
+            tinta_caras_b = limpiar_valor(self.tinta_caras_barniz.value)
+            precio_barniz_litro = limpiar_valor(self.precio_barniz_litro.value)
 
             superficie = (ancho * largo) / 10000
             volumen = ancho * largo * espesor
@@ -228,7 +326,7 @@ class PantallaCostos:
 
     def validar_y_actualizar(self, e):
         self.validar_numeros(e)
-        self.actualizar()
+        self.actualizar(e)
 
     def view(self):
         return ft.View(
@@ -286,8 +384,17 @@ class PantallaCostos:
                     ft.Divider(),
                     ft.Row([
                         ft.ElevatedButton("Atrás", on_click=lambda e: self.page.go("/pantalla6")),
-                        ft.ElevatedButton("Siguiente", on_click=lambda e: self.page.go("/costos"))
+                        ft.ElevatedButton("Siguiente", on_click=lambda e: self.ir_a_costos(e))
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
                 ], spacing=15)
             ]
         )
+def limpiar_valor(valor):
+    if valor is None:
+        return 0.0
+    # Eliminar cualquier carácter que no sea un dígito o un punto decimal
+    valor_limpio = re.sub(r"[^0-9.]", "", valor)
+    try:
+        return float(valor_limpio)
+    except ValueError:
+        return 0.0
