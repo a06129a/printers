@@ -16,7 +16,31 @@ class ClientesView:
         self.page.go("/costos")
 
     def view(self):
-        self.nombre_input = ft.TextField(label="Nombre", width=200, on_change=self.capitalizar_nombre)
+
+
+
+        def capitalizar_nombre(self, e):
+            texto = e.control.value
+
+            # Eliminar caracteres no válidos (solo letras, espacios y acentos permitidos)
+            texto_filtrado = re.sub(r"[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]", "", texto)
+
+            if texto_filtrado:
+                # Normalizar espacios (quitar múltiples y espacios extremos)
+                texto_filtrado = re.sub(r'\s+', ' ', texto_filtrado).strip()
+
+                # Capitalizar cada palabra manualmente
+                palabras = texto_filtrado.split()
+                palabras_capitalizadas = [
+                    palabra[:1].upper() + palabra[1:].lower() for palabra in palabras
+                ]
+                texto_filtrado = ' '.join(palabras_capitalizadas)
+
+            if texto != texto_filtrado:
+                self.nombre_input.value = texto_filtrado
+                self.page.update()
+        self.nombre_input = ft.TextField(label="Nombre", width=200, on_blur=self.capitalizar_nombre())
+        self.nombre_input.on_change=capitalizar_nombre()
         self.documento_input = ft.TextField(label="Documento", width=200, on_change=self.validar_documento)
 
         self.dia_dropdown = ft.Dropdown(label="Día", width=100)
@@ -195,12 +219,6 @@ class ClientesView:
             return [dict(zip(["id_cliente", "nombre", "Documento", "fecha_ultima_edicion"], row)) for row in rows]
         return []
 
-    def capitalizar_nombre(self, e):
-        texto = e.control.value
-        capitalizado = texto.capitalize()
-        if texto != capitalizado:
-            self.nombre_input.value = capitalizado
-            self.page.update()
 
     def validar_documento(self, e):
         texto = re.sub(r"[^\d]", "", e.control.value)[:8]
