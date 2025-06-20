@@ -1,9 +1,36 @@
 import flet as ft
+import sqlite3
+from conexion_bd import get_connection
+
+DENSIDADES = {
+    "PVC": 1.40,
+    "PAI": 1.10,
+    "PET": 0.98,
+    "Polipropileno": 1.00
+}
 
 class Pantalla7View:
     def __init__(self, page: ft.Page, documento_cliente):
         self.page = page
         self.documento_cliente = documento_cliente
+
+        # Traer volumen, superficie y pliegos desde storage
+        self.volumen = float(self.page.client_storage.get("cinta_volumen") or 0)
+        self.superficie = float(self.page.client_storage.get("unidad_superficie") or 0)
+        self.pliegos = int(self.page.client_storage.get("pliegos") or 0)
+
+        # Conexión BD
+        self.conn = get_connection()
+        self.cursor = self.conn.cursor()
+
+        # Inputs para cada material
+        self.input_precio_pvc = self.entrada("18.00", 120)
+        self.input_precio_pai = self.entrada("0.00", 120)
+        self.input_precio_pet = self.entrada("0.00", 120)
+        self.input_precio_pp = self.entrada("0.00", 120)
+
+        self.contenedor_tabla_materiales = ft.Container(content=self.crear_tabla_materiales())
+
 
     def texto_bloque(self, label):
         return ft.Container(
@@ -14,23 +41,107 @@ class Pantalla7View:
         )
 
     def entrada(self, valor, ancho):
+        def validar_input(e):
+            # Aceptar solo números y un solo punto o coma
+            valor = e.control.value
+            valor = valor.replace(",", ".")  # reemplaza coma por punto
+            nuevo = "".join(c for c in valor if c.isdigit() or c == ".")
+            if nuevo.count(".") > 1:
+                partes = nuevo.split(".", 1)
+                nuevo = partes[0] + "." + partes[1].replace(".", "")
+            e.control.value = nuevo
+            self.page.update()
+            self.actualizar_costos(e)
+
         return ft.TextField(
             value=valor,
-            width=ancho,
+            width=140,
+            height=45,
+            text_size=18,
             text_align="right",
             color="white",
             bgcolor="#1e3a8a",
-            border_color="white"
+            border_color="white",
+            on_change=validar_input,
+            keyboard_type="number",
+            dense=False
         )
 
-    def fila_tabla(self, *texts):
-        return ft.DataRow(cells=[ft.DataCell(ft.Text(str(t), color="white")) for t in texts])
 
-    def seccion_titulo(self, titulo):
-        return ft.Text(titulo, size=26, weight="bold", color="white")
+    def fila_tabla(self, material, pe, input_precio):
+        # Fórmulas corregidas
+        peso_unitario = (self.volumen * pe) / 1000
+        total_kg = peso_unitario * self.pliegos
+        precio_kg = float(input_precio.value.replace(",", ".") or 0)
+        costo_final = total_kg * precio_kg
 
-    def divisor(self):
-        return ft.Container(height=20)
+        return ft.DataRow(cells=[
+            ft.DataCell(ft.Text(material, color="white")),
+            ft.DataCell(ft.Text(f"{pe:.2f}", color="white")),
+            ft.DataCell(input_precio),
+            ft.DataCell(ft.Text(f"{peso_unitario:.3f} kg", color="white")),
+            ft.DataCell(ft.Text(f"{total_kg:.3f} kg", color="white")),
+            ft.DataCell(ft.Text(f"${costo_final:.2f}", color="white"))
+        ])
+
+    def actualizar_costos(self, e):
+        nueva_tabla = self.crear_tabla_materiales()
+        self.contenedor_tabla_materiales.content = nueva_tabla
+        self.page.update()
+
+
+    def crear_tabla_materiales(self):
+        return ft.DataTable(
+            columns=[
+                ft.DataColumn(ft.Text("Material", color="white")),
+                ft.DataColumn(ft.Text("P.E", color="white")),
+                ft.DataColumn(ft.Text("Kg ($)", color="white")),
+                ft.DataColumn(ft.Text("Peso", color="white")),
+                ft.DataColumn(ft.Text("Total Kg.", color="white")),
+                ft.DataColumn(ft.Text("Costo final", color="white")),
+            ],
+            rows=[
+                self.fila_tabla("PVC", DENSIDADES["PVC"], self.input_precio_pvc),
+                self.fila_tabla("PAI", DENSIDADES["PAI"], self.input_precio_pai),
+                self.fila_tabla("PET", DENSIDADES["PET"], self.input_precio_pet),
+                self.fila_tabla("Polipropileno", DENSIDADES["Polipropileno"], self.input_precio_pp)
+            ]
+        )
+
+    def guardar_en_bd(self, e):
+        try:
+            for material, input_precio in [
+                ("PVC", self.input_precio_pvc),
+                ("PAI", self.input_precio_pai),
+                ("PET", self.input_precio_pet),
+                ("Polipropileno", self.input_precio_pp)
+            ]:
+                precio_kg = float(input_precio.value.replace(",", ".") or 0)
+                densidad = DENSIDADES[material]
+                peso_unitario = (self.volumen * densidad) / 1000
+                total_kg = peso_unitario * self.pliegos
+                precio_total = total_kg * precio_kg
+
+                if precio_kg > 0:
+                    self.cursor.execute("""
+                        INSERT INTO Materiales (documento_cliente, material, volumen, superficie, densidad, peso_total, precio_kg, precio_total)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        self.documento_cliente,
+                        material,
+                        self.volumen,
+                        self.superficie,
+                        densidad,
+                        total_kg,
+                        precio_kg,
+                        precio_total
+                    ))
+
+            self.conn.commit()
+            print("Datos guardados en Materiales.")
+
+        except Exception as ex:
+            print("Error al guardar en BD:", ex)
 
     def view(self):
         self.page.title = "Costo Producción"
@@ -38,12 +149,15 @@ class Pantalla7View:
         self.page.bgcolor = "#002591"
 
         logo = ft.Image(src="imagenes\\Printers.png", width=150, height=75, fit=ft.ImageFit.CONTAIN)
-        btn_clientes = ft.ElevatedButton("Clientes", bgcolor="white")
-        btn_crear = ft.ElevatedButton("Crear", bgcolor="white")
-        avatar = ft.Icon(name="account_circle", size=40, color="black")
 
         header = ft.Row(
-            controls=[logo, ft.Container(expand=True), btn_clientes, btn_crear, avatar],
+            controls=[
+                logo,
+                ft.Container(expand=True),
+                ft.ElevatedButton("Clientes", bgcolor="white", on_click=lambda e: self.page.go("/clientes")),
+                ft.ElevatedButton("Crear", bgcolor="white", on_click=self.guardar_en_bd),
+                ft.Icon(name="account_circle", size=40, color="black")
+            ],
             alignment=ft.MainAxisAlignment.SPACE_BETWEEN
         )
 
@@ -56,100 +170,14 @@ class Pantalla7View:
                     self.entrada("120,00", 100)
                 ]),
 
-                self.divisor(),
                 self.seccion_titulo("Costo Material"),
-
-                ft.DataTable(
-                    columns=[
-                        ft.DataColumn(ft.Text("Material", color="white")),
-                        ft.DataColumn(ft.Text("P.E", color="white")),
-                        ft.DataColumn(ft.Text("Kg ($)", color="white")),
-                        ft.DataColumn(ft.Text("Peso", color="white")),
-                        ft.DataColumn(ft.Text("Total Kg.", color="white")),
-                        ft.DataColumn(ft.Text("Costo final", color="white")),
-                    ],
-                    rows=[
-                        self.fila_tabla("PVC", "1,40", "18,00", "0,000", "0,000", "$0"),
-                        self.fila_tabla("PET", "0,88", "0,00", "0,000", "0,000", "$0"),
-                    ]
-                ),
-
-                self.divisor(),
-                self.seccion_titulo("Costo Película"),
-
-                ft.Row([
-                    self.texto_bloque("Superficie"),
-                    self.entrada("0", 60),
-                    ft.Text("x $/m2:", color="white"),
-                    self.entrada("7,00", 60),
-                    ft.Text("= Costo x uni:", color="white"),
-                    self.entrada("0,00", 80),
-                ], spacing=10),
-
-                self.divisor(),
-                self.seccion_titulo("Costo Impresión"),
-
-                ft.DataTable(
-                    columns=[
-                        ft.DataColumn(ft.Text("Tipo Impresion", color="white")),
-                        ft.DataColumn(ft.Text("Cant. Color", color="white")),
-                        ft.DataColumn(ft.Text("Pliegos", color="white")),
-                        ft.DataColumn(ft.Text("$ x Pasada", color="white")),
-                        ft.DataColumn(ft.Text("Costo Min.", color="white")),
-                        ft.DataColumn(ft.Text("Costo final", color="white")),
-                    ],
-                    rows=[
-                        self.fila_tabla("Convencional", "0", "0", "15,00", "40,00", "$0"),
-                        self.fila_tabla("UV", "0", "0", "20,00", "60,00", "$0"),
-                    ]
-                ),
-
-                self.divisor(),
-                self.seccion_titulo("Costo Tinta"),
-
-                ft.Row([
-                    self.texto_bloque("Sup. Total"),
-                    self.entrada("70", 60),
-                    ft.Text("Tinta Rinde:", color="white"),
-                    self.entrada("60%", 60),
-                    ft.Text("Caras:", color="white"),
-                    self.entrada("2", 40),
-                ], spacing=10),
-
-                ft.DataTable(
-                    columns=[
-                        ft.DataColumn(ft.Text("Impresión", color="white")),
-                        ft.DataColumn(ft.Text("$ x Lt.", color="white")),
-                        ft.DataColumn(ft.Text("Costo final", color="white")),
-                    ],
-                    rows=[
-                        self.fila_tabla("Convencional", "33000,00", "$0"),
-                        self.fila_tabla("UV", "60000,00", "$0"),
-                    ]
-                ),
-
-                self.divisor(),
-                self.seccion_titulo("Costo Barniz"),
-
-                ft.DataTable(
-                    columns=[
-                        ft.DataColumn(ft.Text("Impresión", color="white")),
-                        ft.DataColumn(ft.Text("u$S x Lt", color="white")),
-                        ft.DataColumn(ft.Text("$ x Lt", color="white")),
-                        ft.DataColumn(ft.Text("Costo final por cm", color="white")),
-                    ],
-                    rows=[
-                        self.fila_tabla("Convencional", "18", "1800,00", "$0"),
-                        self.fila_tabla("UV", "45", "4500,00", "$0"),
-                    ]
-                ),
-
-                self.divisor(),
+                self.contenedor_tabla_materiales,
 
                 ft.Row([
                     ft.ElevatedButton("Atrás", bgcolor="#ffffff", height=40, width=150, on_click=lambda e: self.page.go("/pantalla6")),
                     ft.ElevatedButton("Siguiente", bgcolor="#ffffff", height=40, width=150, on_click=lambda e: self.page.go("/costos")),
                 ], alignment=ft.MainAxisAlignment.END)
+
             ]),
             padding=20
         )
@@ -163,3 +191,6 @@ class Pantalla7View:
                 contenido
             ]
         )
+
+    def seccion_titulo(self, titulo):
+        return ft.Text(titulo, size=26, weight="bold", color="white")
