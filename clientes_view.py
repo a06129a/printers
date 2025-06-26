@@ -1,7 +1,10 @@
-from conexion_bd import get_connection
 import flet as ft
+from conexion_bd import get_connection
 import re
+import os
+import sys
 from functools import partial
+from Pantalla6 import Pantalla6View
 
 class ClientesView:
     def __init__(self, page: ft.Page):
@@ -12,35 +15,12 @@ class ClientesView:
         self.buscador_input = ft.TextField(hint_text="Buscar por nombre...", expand=True)
 
     def ir_a_costos(self, documento):
-        self.page.client_storage.set("documento_cliente", documento)
-        self.page.go("/costos")
+        self.page.views.clear()
+        self.page.views.append(Pantalla6View(self.page, documento).view())
+        self.page.update()
 
     def view(self):
-
-
-
-        def capitalizar_nombre(self, e):
-            texto = e.control.value
-
-            # Eliminar caracteres no válidos (solo letras, espacios y acentos permitidos)
-            texto_filtrado = re.sub(r"[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]", "", texto)
-
-            if texto_filtrado:
-                # Normalizar espacios (quitar múltiples y espacios extremos)
-                texto_filtrado = re.sub(r'\s+', ' ', texto_filtrado).strip()
-
-                # Capitalizar cada palabra manualmente
-                palabras = texto_filtrado.split()
-                palabras_capitalizadas = [
-                    palabra[:1].upper() + palabra[1:].lower() for palabra in palabras
-                ]
-                texto_filtrado = ' '.join(palabras_capitalizadas)
-
-            if texto != texto_filtrado:
-                self.nombre_input.value = texto_filtrado
-                self.page.update()
-        self.nombre_input = ft.TextField(label="Nombre", width=200, on_blur=self.capitalizar_nombre())
-        self.nombre_input.on_change=capitalizar_nombre()
+        self.nombre_input = ft.TextField(label="Nombre", width=200, on_change=self.capitalizar_nombre)
         self.documento_input = ft.TextField(label="Documento", width=200, on_change=self.validar_documento)
 
         self.dia_dropdown = ft.Dropdown(label="Día", width=100)
@@ -50,6 +30,13 @@ class ClientesView:
         self.dia_dropdown.options = [ft.dropdown.Option(str(d)) for d in range(1, 32)]
         self.mes_dropdown.options = [ft.dropdown.Option(str(m)) for m in range(1, 13)]
         self.anio_dropdown.options = [ft.dropdown.Option(str(a)) for a in range(2025, 2031)]
+
+        def resource_path(relative_path):
+            try:
+                base_path = sys._MEIPASS
+            except Exception:
+                base_path = os.path.abspath(".")
+            return os.path.join(base_path, relative_path)
 
         def borrar_cliente(cliente_id):
             conn = get_connection()
@@ -62,53 +49,34 @@ class ClientesView:
 
         def render_clientes(clientes):
             self.lista_clientes.controls.clear()
-
             for c in clientes:
                 def on_hover_handler(e):
                     e.control.bgcolor = "#1565c0" if e.data == "true" else None
                     e.control.update()
-
                 cliente_container = ft.Container(
                     content=ft.Row([
                         ft.Text(c["nombre"], weight="bold", color="white"),
                         ft.Text(f"Doc: {c['Documento']}", color="white"),
                         ft.Text(f"Entrega: {c['fecha_ultima_edicion']}", color="white"),
-                        ft.Container(expand=True),  # 👉 Esto agrega espacio entre los textos y los botones
-                        ft.ElevatedButton(
-                            "Modificar",
-                            on_click=lambda e, doc=c["Documento"]: self.ir_a_costos(doc)
-                        ),
-                        ft.ElevatedButton(
-                            "Borrar",
-                            on_click=lambda e, id=c["id_cliente"]: borrar_cliente(id),
-                            bgcolor="red",
-                            color="white"
-                        )
-                    ],
-                    alignment="start",  # 👉 Alineación como en el segundo código
-                    vertical_alignment="center"  # 👉 Alineación vertical como en el segundo código
-                    ),
+                        ft.Container(expand=True),
+                        ft.ElevatedButton("Modificar", on_click=lambda e, doc=c["Documento"]: self.ir_a_costos(doc)),
+                        ft.ElevatedButton("Borrar", on_click=lambda e, id=c["id_cliente"]: borrar_cliente(id), bgcolor="red", color="white")
+                    ], alignment="start", vertical_alignment="center"),
                     bgcolor=None,
                     padding=10,
                     border_radius=5,
                     on_hover=on_hover_handler
                 )
-
                 self.lista_clientes.controls.append(cliente_container)
-
             self.page.update()
 
-
         def agregar_cliente(e):
-            # Verificar que todos los campos estén completos
             if not all([self.nombre_input.value, self.documento_input.value,
                         self.dia_dropdown.value, self.mes_dropdown.value, self.anio_dropdown.value]):
                 self.mensaje.value = "Completa todos los campos"
                 self.mensaje.color = "red"
                 self.page.update()
                 return
-
-            # Preparar la fecha
             dia = self.dia_dropdown.value.zfill(2)
             mes = self.mes_dropdown.value.zfill(2)
             anio = self.anio_dropdown.value[-2:]
@@ -119,24 +87,19 @@ class ClientesView:
                 cursor = conn.cursor()
                 cursor.execute("SELECT COUNT(*) FROM clientes WHERE Documento = ?", (self.documento_input.value,))
                 if cursor.fetchone()[0] > 0:
-                    # Documento ya existe
                     self.mensaje.value = "Documento ya registrado"
                     self.mensaje.color = "red"
                     self.page.update()
                     conn.close()
-                    return  # 👈 No continúa
-
-                # Insertar el cliente
+                    return
                 cursor.execute(
                     "INSERT INTO clientes (nombre, Documento, fecha_ultima_edicion) VALUES (?, ?, ?)",
                     (self.nombre_input.value, self.documento_input.value, fecha)
                 )
-
                 conn.commit()
                 conn.close()
 
-            # Si todo salió bien, limpiar los campos
-            documento_agregado = self.documento_input.value  # 👉 Guardamos el documento antes de limpiar
+            documento_agregado = self.documento_input.value
             self.nombre_input.value = ""
             self.documento_input.value = ""
             self.dia_dropdown.value = None
@@ -146,10 +109,7 @@ class ClientesView:
             self.mensaje.color = "green"
             self.cargar_clientes()
             self.page.update()
-
-            # 👉 Navegar a costos
             self.ir_a_costos(documento_agregado)
-
 
         def cambiar_lista(e):
             self.orden_filtro = (self.orden_filtro + 1) % 3
@@ -169,8 +129,11 @@ class ClientesView:
                 ft.Container(
                     padding=20,
                     content=ft.Column([
-                        ft.Row([ft.ElevatedButton("Cerrar sesion",on_click=lambda e: self.page.go("/login"),bgcolor="#8B0000",color="white")]),
-                        ft.Image(src="Printers Serigrafía_ISOLOGOTIPOS_B_Horizontal.png", width=250),
+                        ft.Row([
+                            ft.Container(expand=True),
+                            ft.ElevatedButton("Cerrar sesión", on_click=lambda e: self.page.go("/login"), bgcolor="#8B0000", color="white")
+                        ]),
+                        ft.Image(src=resource_path("imagen/Printers_Serigrafía_ISOLOGOTIPOS_B_Horizontal.png"), width=250),
                         ft.Text("Gestión de Clientes", size=28, weight="bold", color="white"),
                         ft.Row([
                             self.nombre_input,
@@ -178,7 +141,7 @@ class ClientesView:
                             self.dia_dropdown,
                             self.mes_dropdown,
                             self.anio_dropdown,
-                            ft.ElevatedButton("Agregar", on_click=agregar_cliente, ),
+                            ft.ElevatedButton("Agregar", on_click=agregar_cliente)
                         ], spacing=10),
                         self.mensaje,
                         ft.Row([
@@ -189,9 +152,7 @@ class ClientesView:
                         ft.Divider(color="white"),
                         self.lista_clientes,
                         ft.Divider(),
-                        ft.Row([
-
-                        ], alignment=ft.MainAxisAlignment.END, spacing=20)
+                        ft.Row([], alignment=ft.MainAxisAlignment.END, spacing=20)
                     ])
                 )
             ]
@@ -219,6 +180,12 @@ class ClientesView:
             return [dict(zip(["id_cliente", "nombre", "Documento", "fecha_ultima_edicion"], row)) for row in rows]
         return []
 
+    def capitalizar_nombre(self, e):
+        texto = e.control.value
+        capitalizado = texto.capitalize()
+        if texto != capitalizado:
+            self.nombre_input.value = capitalizado
+            self.page.update()
 
     def validar_documento(self, e):
         texto = re.sub(r"[^\d]", "", e.control.value)[:8]
@@ -235,7 +202,7 @@ class ClientesView:
         elif mes in dias_30:
             max_dia = 30
         else:
-            max_dia = 29 
+            max_dia = 29
         self.dia_dropdown.options = [ft.dropdown.Option(str(d)) for d in range(1, max_dia + 1)]
         if int(self.dia_dropdown.value or 0) > max_dia:
             self.dia_dropdown.value = None

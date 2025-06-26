@@ -1,3 +1,4 @@
+# conexion_bd.py
 import sqlite3
 import os
 import sys
@@ -5,6 +6,7 @@ import sys
 def obtener_ruta_db():
     if hasattr(sys, "_MEIPASS"):
         return os.path.join(sys._MEIPASS, "my_base.db")
+    # Ruta absoluta basada en la ubicación del archivo actual
     base_dir = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base_dir, "my_base.db")
 def get_connection():
