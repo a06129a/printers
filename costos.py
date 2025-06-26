@@ -1,16 +1,19 @@
 import flet as ft
+import os
+import sys
 from conexion_bd import get_connection
 
 class CostosView:
     
     def __init__(self, page: ft.Page):
         self.page = page
+        # Este texto mostrará mensajes al usuario
         self.mensaje_guardado = ft.Text(value="", color="green", weight="bold")
 
     def label(self, texto):
         return ft.Container(
             content=ft.Text(texto, color="white"),
-            bgcolor="#0168ee",
+            bgcolor="#0039e6",
             padding=10,
             border_radius=25,
             width=180
@@ -32,7 +35,17 @@ class CostosView:
         subtotal = ft.TextField(width=100)
         margen = ft.TextField(width=100)
         total_ventas = ft.TextField(width=100)
+    
+        def resource_path(relative_path):
+            """ Obtener la ruta absoluta a un recurso, funciona tanto en dev como en ejecutable """
+            try:
+                base_path = sys._MEIPASS  # cuando está empaquetado con PyInstaller
+            except Exception:
+                base_path = os.path.abspath(".")
 
+            return os.path.join(base_path, relative_path)
+
+    # --- Consultar la base de datos para obtener los datos existentes ---
         conn = get_connection()
         if conn and documento_cliente != "Documento no disponible":
             cursor = conn.cursor()
@@ -48,6 +61,7 @@ class CostosView:
             conn.close()
 
             if fila:
+                # Asignar valores a los inputs (convertir a str porque TextField usa strings)
                 columnas = [
                     "varios", "material", "pelicula", "tinta", "shablon", "barniz",
                     "corte", "troquel", "armado", "troquelado", "doblado", "cinta",
@@ -57,6 +71,10 @@ class CostosView:
                     if fila[i] is not None:
                         inputs[col].value = str(fila[i])
             
+            # Asignar mano_obra, subtotal, margen, total_ventas si están en la tabla
+            # Si no los tenés guardados, podés dejarlos vacíos o 0.
+            # Suponiendo que mano_obra, subtotal, margen, total_ventas no están en esta consulta,
+            # podés agregar la consulta para esos campos también o dejarlos vacíos.
                 mano_obra.value = ""  
                 subtotal.value = ""
                 margen.value = ""
@@ -114,9 +132,11 @@ class CostosView:
                     conn.commit()
                     conn.close()
 
+                    # Aquí actualizo el texto para mostrar el mensaje
                     self.mensaje_guardado.value = "Los datos se han guardado correctamente."
                     self.page.update()
 
+                    # Opcional: limpiar el mensaje después de 3 segundos
                     def limpiar_mensaje():
                         self.mensaje_guardado.value = ""
                         self.page.update()
@@ -125,17 +145,21 @@ class CostosView:
         return ft.View(
             route="/costos",
             scroll=ft.ScrollMode.ALWAYS,
+            horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
+            bgcolor="#1976d2",
             controls=[
                 ft.Container(
                     padding=20,
-                    bgcolor="#51d3f3ea",
+                    bgcolor="#1976d2",
                     expand=True,
+                    
+
                     content=ft.Column([
-                        ft.Image(src="Printers Serigrafía_ISOLOGOTIPOS_B_Horizontal.png", width=250),
+                        ft.Image(src=resource_path("imagen/Printers.png"), width=250),
                         ft.Container(
-                            bgcolor="#3c6b83", padding=10,
-                            content=ft.Text("Costos", size=32, weight="bold", color="black",
-                                            style=ft.TextStyle(decoration=ft.TextDecoration.UNDERLINE))
+                            bgcolor="#1976d2", padding=10,
+                            content=ft.Text("Costos", size=32, weight="bold", color="white",
+                            style=ft.TextStyle(decoration=ft.TextDecoration.UNDERLINE))
                         ),
                         ft.Row([self.label("Varios:"), inputs["varios"], self.label("Material:"), inputs["material"]], spacing=10),
                         ft.Row([self.label("Valor Película:"), inputs["pelicula"], self.label("Valor Tinta:"), inputs["tinta"]], spacing=10),
@@ -155,6 +179,7 @@ class CostosView:
 
                         ft.Divider(),
 
+                        # Mensaje de guardado aquí
                         self.mensaje_guardado,
 
                         ft.Row([
@@ -169,12 +194,13 @@ class CostosView:
                         ], spacing=10),
                         ft.Row([
                             ft.ElevatedButton("Guardar datos (TEMP)", on_click=guardar_datos),
-                            ft.ElevatedButton("Orden pedido", bgcolor="#2e7d78", color="white")
+                            ft.ElevatedButton("Orden pedido", bgcolor="#1536f1", color="white", on_click=lambda e: self.page.go("/orden_pedido"))       
                         ], alignment=ft.MainAxisAlignment.END, spacing=20),
                         ft.Row([
-                            ft.ElevatedButton("Atrás", on_click=lambda e: self.page.go("/clientes"),
-                                              bgcolor="white", color="black")
+                            ft.ElevatedButton("Volver", on_click=lambda e: self.page.go("/pantalla7"),
+                                    bgcolor="white", color="black")
                         ], alignment=ft.MainAxisAlignment.START)
+
                     ], spacing=15)
                 )
             ]

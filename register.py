@@ -1,5 +1,7 @@
 import flet as ft
 import re
+import os
+import sys
 from conexion_bd import get_connection
 
 class RegistroView:
@@ -17,6 +19,15 @@ class RegistroView:
             if texto != texto_filtrado:
                 nombre.value = texto_filtrado
                 self.page.update()
+
+        def resource_path(relative_path):
+            """ Obtener la ruta absoluta a un recurso, funciona tanto en dev como en ejecutable """
+            try:
+                base_path = sys._MEIPASS  # cuando está empaquetado con PyInstaller
+            except Exception:
+                base_path = os.path.abspath(".")
+
+            return os.path.join(base_path, relative_path)
 
         nombre = ft.TextField(
             label="Nombre completo", border_radius=8, bgcolor="black",
@@ -78,7 +89,7 @@ class RegistroView:
                     shadow=ft.BoxShadow(blur_radius=12, color="#6AD5FF73"),
                     content=ft.Column(
                         [
-                            ft.Image(src="Printers Serigrafía_ISOLOGOTIPOS_B_Horizontal.png", width=250),
+                            ft.Image(src=resource_path("imagen/Printers.png"), width=250),
                             ft.Text("Registro de Usuario", size=26, weight="bold", color="#333"),
                             nombre, usuario, correo, contraseña, confirmar,
                             ft.ElevatedButton("Registrarse", on_click=on_register, width=300,
