@@ -5,8 +5,9 @@ from conexion_bd import get_connection
 
 class CostosView:
     
-    def __init__(self, page: ft.Page):
+    def __init__(self, page: ft.Page,documento_cliente):
         self.page = page
+        self.documento_cliente=documento_cliente
         # Este texto mostrará mensajes al usuario
         self.mensaje_guardado = ft.Text(value="", color="green", weight="bold")
 

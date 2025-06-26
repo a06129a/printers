@@ -29,7 +29,8 @@ class MainApp:
             documento = self.page.client_storage.get("documento_cliente")
             self.page.views.append(PantallaCostos(self.page, documento).view())
         elif self.page.route == "/costos":
-            self.page.views.append(CostosView(self.page).view())
+            documento = self.page.client_storage.get("documento_cliente")
+            self.page.views.append(CostosView(self.page, documento).view())
         elif self.page.route == "/orden_pedido":
             self.page.views.append(OrdenPedidoView(self.page).view())
         else:

@@ -187,6 +187,7 @@ class PantallaCostos:
                     Costo_impresion_Costo_Final,
                     Costo_tinta_Tinta_Rinde,
                     Costo_tinta_Porciento,
+                    Costo_tinta_Caras,
                     Costo_tinta_Precioxlt,
                     Costo_tinta_Lts_Necesarios,
                     Costo_tinta_Costo_final,
@@ -203,7 +204,7 @@ class PantallaCostos:
                     Costo_barniz_Usxlt,
                     Costo_barniz_Lts,
                     Costo_barniz_Costo_Finalxcm
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 self.documento_cliente,
                 self.dem_impr.value,
@@ -216,6 +217,7 @@ class PantallaCostos:
                 self.costo_impresion.value,
                 self.tinta_rinde.value,
                 self.tinta_porcentaje.value,
+                self.tinta_caras.value,
                 self.precio_tinta_litro.value,
                 self.litros_necesarios.value,
                 self.costo_tinta.value,
