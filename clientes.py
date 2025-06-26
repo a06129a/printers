@@ -1,6 +1,8 @@
 from conexion_bd import get_connection
 import flet as ft
 import re
+import os
+import sys
 from functools import partial
 
 class ClientesView:
@@ -13,7 +15,8 @@ class ClientesView:
 
     def ir_a_costos(self, documento):
         self.page.client_storage.set("documento_cliente", documento)
-        self.page.go("/costos")
+        self.page.go("/pantalla6")
+
 
     def view(self):
         self.nombre_input = ft.TextField(label="Nombre", width=200, on_change=self.capitalizar_nombre)
@@ -26,6 +29,15 @@ class ClientesView:
         self.dia_dropdown.options = [ft.dropdown.Option(str(d)) for d in range(1, 32)]
         self.mes_dropdown.options = [ft.dropdown.Option(str(m)) for m in range(1, 13)]
         self.anio_dropdown.options = [ft.dropdown.Option(str(a)) for a in range(2025, 2031)]
+
+        def resource_path(relative_path):
+            """ Obtener la ruta absoluta a un recurso, funciona tanto en dev como en ejecutable """
+            try:
+                base_path = sys._MEIPASS  # cuando está empaquetado con PyInstaller
+            except Exception:
+                base_path = os.path.abspath(".")
+
+            return os.path.join(base_path, relative_path)
 
         def borrar_cliente(cliente_id):
             conn = get_connection()
@@ -139,14 +151,14 @@ class ClientesView:
 
         return ft.View(
             route="/clientes",
-            bgcolor="#0d47a1",
+            bgcolor="#1976d2",
             scroll=ft.ScrollMode.ALWAYS,
             controls=[
                 ft.Container(
                     padding=20,
                     content=ft.Column([
-                        ft.Row([ft.ElevatedButton("Cerrar sesion",on_click=lambda e: self.page.go("/login"),bgcolor="#8B0000",color="white")]),
-                        ft.Image(src="Printers Serigrafía_ISOLOGOTIPOS_B_Horizontal.png", width=250),
+                        ft.Row([ft.ElevatedButton("Cerrar sesion",on_click=lambda e: self.page.go("/login"),bgcolor="red",color="white")]),
+                        ft.Image(src=resource_path("imagen/Printers.png"), width=250),
                         ft.Text("Gestión de Clientes", size=28, weight="bold", color="white"),
                         ft.Row([
                             self.nombre_input,
