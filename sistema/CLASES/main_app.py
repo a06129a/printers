@@ -3,7 +3,7 @@ from register import RegistroView
 from clientes import ClientesView
 from costos import CostosView
 from Pantalla6 import Pantalla6View
-from Pantalla7 import Pantalla7View
+from Pantalla7 import PantallaCostos
 from Orden_pedido import OrdenPedidoView
 import flet as ft
 
@@ -23,9 +23,11 @@ class MainApp:
         elif self.page.route == "/clientes":
             self.page.views.append(ClientesView(self.page).view())
         elif self.page.route == "/pantalla6":
-            self.page.views.append(Pantalla6View(self.page).view())
+            documento = self.page.client_storage.get("documento_cliente")
+            self.page.views.append(Pantalla6View(self.page, documento).view())
         elif self.page.route == "/pantalla7":
-            self.page.views.append(Pantalla7View(self.page).view())
+            documento = self.page.client_storage.get("documento_cliente")
+            self.page.views.append(PantallaCostos(self.page, documento).view())
         elif self.page.route == "/costos":
             self.page.views.append(CostosView(self.page).view())
         elif self.page.route == "/orden_pedido":
