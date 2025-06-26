@@ -2,6 +2,7 @@ import flet as ft
 import os
 import sys
 from conexion_bd import get_connection
+import threading
 
 class CostosView:
     
@@ -10,6 +11,8 @@ class CostosView:
         self.documento_cliente=documento_cliente
         # Este texto mostrará mensajes al usuario
         self.mensaje_guardado = ft.Text(value="", color="green", weight="bold")
+        self.switch_barniz = ft.Switch(value=False)
+        self.switch_cinta = ft.Switch(value=False)
 
     def label(self, texto):
         return ft.Container(
@@ -21,22 +24,56 @@ class CostosView:
         )
 
     def view(self):
+        def actualizar_subtotal(e=None):
+            subtotal_valor = 0
+            campos_a_sumar = [
+                "varios", "material", "pelicula", "tinta", "shablon",
+                "corte", "troquel", "armado", "troquelado", "doblado",
+                "horas", "empleados"
+            ]
+            for campo in campos_a_sumar:
+                try:
+                    subtotal_valor += float(inputs[campo].value or 0)
+                except ValueError:
+                    pass
+            try:
+                subtotal_valor += float(mano_obra.value or 0)
+            except ValueError:
+                pass
+            if self.switch_barniz.value:
+                subtotal_valor += 1
+            if self.switch_cinta.value:
+                subtotal_valor += 1
+            subtotal.value = str(round(subtotal_valor, 2))
+            actualizar_total_ventas()
+
+        def actualizar_total_ventas(e=None):
+            try:
+                s = float(subtotal.value or 0)
+                m = float(margen.value or 0)
+                total = s + (m / 100 * s)
+                total_ventas.value = str(round(total, 2))
+            except ValueError:
+                total_ventas.value = ""
+            self.page.update()
+
         documento_cliente = self.page.client_storage.get("documento_cliente")
         if not documento_cliente:
             documento_cliente = "Documento no disponible"
     
-        crear_input = lambda: ft.TextField(width=150, border_radius=25)
+        crear_input = lambda: ft.TextField(width=150, border_radius=25, on_change=actualizar_total_ventas)
         inputs = {nombre: crear_input() for nombre in [
             "varios", "material", "pelicula", "tinta", "shablon", "barniz",
             "corte", "troquel", "armado", "troquelado", "doblado", "cinta",
             "horas", "empleados"
         ]}
 
-        mano_obra = ft.TextField(width=200, border_radius=25)
-        subtotal = ft.TextField(width=100)
-        margen = ft.TextField(width=100)
-        total_ventas = ft.TextField(width=100)
-    
+        mano_obra = ft.TextField(width=200, border_radius=25,on_change=actualizar_total_ventas)
+        subtotal = ft.TextField(width=100,on_change=actualizar_total_ventas)
+        margen = ft.TextField(width=100, on_change=actualizar_total_ventas)
+        total_ventas = ft.TextField(width=100,on_change=actualizar_total_ventas)
+        self.switch_barniz.on_change = actualizar_subtotal
+        self.switch_cinta.on_change = actualizar_subtotal
         def resource_path(relative_path):
             """ Obtener la ruta absoluta a un recurso, funciona tanto en dev como en ejecutable """
             try:
@@ -54,7 +91,8 @@ class CostosView:
                 SELECT 
                     Varios, Material, Valor_Pelicula, Valor_Tinta, Shablon, Barniz,
                     Vlor_Corte, Valor_Troquel, Valor_Armado, Valor_Troquelado, Valor_Doblado,
-                    Aplicacion_Cinta, Cantidad_Horas, Cantidad_Empleados
+                    Aplicacion_Cinta, Cantidad_Horas, Cantidad_Empleados,
+                    Mano_Obra, Subtotal, Margen, Total_Ventas
                 FROM clientes
                 WHERE Documento = ?
             """, (documento_cliente,))
@@ -68,18 +106,20 @@ class CostosView:
                     "corte", "troquel", "armado", "troquelado", "doblado", "cinta",
                     "horas", "empleados"
                 ]
-                for i, col in enumerate(columnas):
+                for i, col in enumerate(columnas):  
                     if fila[i] is not None:
                         inputs[col].value = str(fila[i])
+                self.switch_barniz.value = bool(fila[5])
+                self.switch_cinta.value = bool(fila[11])
             
             # Asignar mano_obra, subtotal, margen, total_ventas si están en la tabla
             # Si no los tenés guardados, podés dejarlos vacíos o 0.
             # Suponiendo que mano_obra, subtotal, margen, total_ventas no están en esta consulta,
             # podés agregar la consulta para esos campos también o dejarlos vacíos.
-                mano_obra.value = ""  
-                subtotal.value = ""
-                margen.value = ""
-                total_ventas.value = ""
+                mano_obra.value = str(fila[14] or "")
+                subtotal.value = str(fila[15] or "")
+                margen.value = str(fila[16] or "")
+                total_ventas.value = str(fila[17] or "")
         def guardar_datos(e):
             datos = {k: v.value for k, v in inputs.items()}
             datos.update({
@@ -88,7 +128,6 @@ class CostosView:
                 "margen": margen.value,
                 "total_ventas": total_ventas.value
             })
-
             conn = get_connection()
             if conn:
                 cursor = conn.cursor()
@@ -110,6 +149,10 @@ class CostosView:
                             Aplicacion_Cinta = ?,
                             Cantidad_Horas = ?,
                             Cantidad_Empleados = ?,
+                            Mano_Obra = ?,
+                            Subtotal = ?,
+                            Margen = ?,
+                            Total_Ventas = ?,
                             fecha_ultima_edicion = CURRENT_DATE
                         WHERE Documento = ?
                     """, (
@@ -118,15 +161,19 @@ class CostosView:
                         float(datos["pelicula"] or 0),
                         float(datos["tinta"] or 0),
                         datos["shablon"],
-                        False,
+                        self.switch_barniz.value,
                         float(datos["corte"] or 0),
                         float(datos["troquel"] or 0),
                         float(datos["armado"] or 0),
                         float(datos["troquelado"] or 0),
                         float(datos["doblado"] or 0),
-                        False,
+                        self.switch_cinta.value,
                         float(datos["horas"] or 0),
                         float(datos["empleados"] or 0),
+                        float(datos["mano_obra"] or 0),
+                        float(datos["subtotal"] or 0),
+                        float(datos["margen"] or 0),
+                        float(datos["total_ventas"] or 0),
                         documento_cliente
                     ))
 
@@ -138,10 +185,13 @@ class CostosView:
                     self.page.update()
 
                     # Opcional: limpiar el mensaje después de 3 segundos
+                    import asyncio
+
                     def limpiar_mensaje():
                         self.mensaje_guardado.value = ""
                         self.page.update()
-                    self.page.timer(3, limpiar_mensaje)
+                        threading.Timer(3, limpiar_mensaje).start()
+        actualizar_subtotal()
 
         return ft.View(
             route="/costos",
@@ -167,8 +217,8 @@ class CostosView:
                         ft.Row([self.label("Shablón:"), inputs["shablon"], self.label("Cant. empleados:"), inputs["empleados"]], spacing=10),
                         ft.Row([self.label("Valor Corte:"), inputs["corte"], self.label("Valor troquel:"), inputs["troquel"]], spacing=10),
                         ft.Row([self.label("Valor Armado:"), inputs["armado"], self.label("Valor troquelado:"), inputs["troquelado"]], spacing=10),
-                        ft.Row([self.label("Valor Doblado:"), inputs["doblado"], self.label("Aplicacion cinta:"), inputs["cinta"]], spacing=10),
-                        ft.Row([self.label("Cantidad horas:"), inputs["horas"], self.label("Barniz:"), ft.Switch(value=False)], spacing=10),
+                        ft.Row([self.label("Valor Doblado:"), inputs["doblado"], self.label("Aplicacion cinta:"), self.switch_cinta], spacing=10),
+                        ft.Row([self.label("Cantidad horas:"), inputs["horas"], self.label("Barniz:"), self.switch_barniz], spacing=10),
 
                         ft.Row([
                              ft.Container(
