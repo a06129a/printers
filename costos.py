@@ -5,15 +5,13 @@ from conexion_bd import get_connection
 import threading
 
 class CostosView:
-    
-    def __init__(self, page: ft.Page,documento_cliente):
+
+    def __init__(self, page: ft.Page, documento_cliente):
         self.page = page
-        self.documento_cliente=documento_cliente
-        # Este texto mostrará mensajes al usuario
+        self.documento_cliente = documento_cliente
         self.mensaje_guardado = ft.Text(value="", color="green", weight="bold")
         self.switch_barniz = ft.Switch(value=False)
         self.switch_cinta = ft.Switch(value=False)
-
     def label(self, texto):
         return ft.Container(
             content=ft.Text(texto, color="white"),
@@ -24,6 +22,30 @@ class CostosView:
         )
 
     def view(self):
+        documento_cliente = self.page.client_storage.get("documento_cliente")
+        if not documento_cliente:
+            documento_cliente = "Documento no disponible"
+
+        subtotal = ft.TextField(width=100, read_only=True, keyboard_type=ft.KeyboardType.NUMBER)
+        margen = ft.TextField(width=100, keyboard_type=ft.KeyboardType.NUMBER)
+        total_ventas = ft.TextField(width=100, read_only=True, keyboard_type=ft.KeyboardType.NUMBER)
+
+        def validar_numerico(e):
+            valor = e.control.value
+            if not valor.replace(".", "", 1).isdigit():
+                e.control.value = "".join(c for c in valor if c.isdigit() or c == ".")
+                self.page.update()
+
+        def actualizar_total_ventas(e=None):
+            try:
+                s = float(subtotal.value or 0)
+                m = float(margen.value or 0)
+                total = s + (m / 100 * s)
+                total_ventas.value = str(round(total, 2))
+            except ValueError:
+                total_ventas.value = ""
+            self.page.update()
+
         def actualizar_subtotal(e=None):
             subtotal_valor = 0
             campos_a_sumar = [
@@ -47,43 +69,31 @@ class CostosView:
             subtotal.value = str(round(subtotal_valor, 2))
             actualizar_total_ventas()
 
-        def actualizar_total_ventas(e=None):
-            try:
-                s = float(subtotal.value or 0)
-                m = float(margen.value or 0)
-                total = s + (m / 100 * s)
-                total_ventas.value = str(round(total, 2))
-            except ValueError:
-                total_ventas.value = ""
-            self.page.update()
+        def crear_input_numerico():
+            return ft.TextField(
+                width=150,
+                border_radius=25,
+                keyboard_type=ft.KeyboardType.NUMBER,
+                on_change=lambda e: (validar_numerico(e), actualizar_subtotal())
+            )
 
-        documento_cliente = self.page.client_storage.get("documento_cliente")
-        if not documento_cliente:
-            documento_cliente = "Documento no disponible"
-    
-        crear_input = lambda: ft.TextField(width=150, border_radius=25, on_change=actualizar_total_ventas)
-        inputs = {nombre: crear_input() for nombre in [
+        inputs = {nombre: crear_input_numerico() for nombre in [
             "varios", "material", "pelicula", "tinta", "shablon", "barniz",
             "corte", "troquel", "armado", "troquelado", "doblado", "cinta",
             "horas", "empleados"
         ]}
 
-        mano_obra = ft.TextField(width=200, border_radius=25,on_change=actualizar_total_ventas)
-        subtotal = ft.TextField(width=100,on_change=actualizar_total_ventas)
-        margen = ft.TextField(width=100, on_change=actualizar_total_ventas)
-        total_ventas = ft.TextField(width=100,on_change=actualizar_total_ventas)
+        mano_obra = ft.TextField(width=200, border_radius=25, keyboard_type=ft.KeyboardType.NUMBER,on_change=lambda e: (validar_numerico(e), actualizar_subtotal()))
+        margen.on_change = lambda e: (validar_numerico(e), actualizar_total_ventas())
         self.switch_barniz.on_change = actualizar_subtotal
         self.switch_cinta.on_change = actualizar_subtotal
+
         def resource_path(relative_path):
-            """ Obtener la ruta absoluta a un recurso, funciona tanto en dev como en ejecutable """
             try:
-                base_path = sys._MEIPASS  # cuando está empaquetado con PyInstaller
+                base_path = sys._MEIPASS
             except Exception:
                 base_path = os.path.abspath(".")
-
             return os.path.join(base_path, relative_path)
-
-    # --- Consultar la base de datos para obtener los datos existentes ---
         conn = get_connection()
         if conn and documento_cliente != "Documento no disponible":
             cursor = conn.cursor()
@@ -100,22 +110,47 @@ class CostosView:
             conn.close()
 
             if fila:
-                # Asignar valores a los inputs (convertir a str porque TextField usa strings)
                 columnas = [
                     "varios", "material", "pelicula", "tinta", "shablon", "barniz",
                     "corte", "troquel", "armado", "troquelado", "doblado", "cinta",
                     "horas", "empleados"
                 ]
-                for i, col in enumerate(columnas):  
+                for i, col in enumerate(columnas):
                     if fila[i] is not None:
                         inputs[col].value = str(fila[i])
                 self.switch_barniz.value = bool(fila[5])
                 self.switch_cinta.value = bool(fila[11])
-            
-            # Asignar mano_obra, subtotal, margen, total_ventas si están en la tabla
-            # Si no los tenés guardados, podés dejarlos vacíos o 0.
-            # Suponiendo que mano_obra, subtotal, margen, total_ventas no están en esta consulta,
-            # podés agregar la consulta para esos campos también o dejarlos vacíos.
+                mano_obra.value = str(fila[14] or "")
+                subtotal.value = str(fila[15] or "")
+                margen.value = str(fila[16] or "")
+                total_ventas.value = str(fila[17] or "")
+
+        conn = get_connection()
+        if conn and documento_cliente != "Documento no disponible":
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT 
+                    Varios, Material, Valor_Pelicula, Valor_Tinta, Shablon, Barniz,
+                    Vlor_Corte, Valor_Troquel, Valor_Armado, Valor_Troquelado, Valor_Doblado,
+                    Aplicacion_Cinta, Cantidad_Horas, Cantidad_Empleados,
+                    Mano_Obra, Subtotal, Margen, Total_Ventas
+                FROM clientes
+                WHERE Documento = ?
+            """, (documento_cliente,))
+            fila = cursor.fetchone()
+            conn.close()
+
+            if fila:
+                columnas = [
+                    "varios", "material", "pelicula", "tinta", "shablon", "barniz",
+                    "corte", "troquel", "armado", "troquelado", "doblado", "cinta",
+                    "horas", "empleados"
+                ]
+                for i, col in enumerate(columnas):
+                    if fila[i] is not None:
+                        inputs[col].value = str(fila[i])
+                self.switch_barniz.value = bool(fila[5])
+                self.switch_cinta.value = bool(fila[11])
                 mano_obra.value = str(fila[14] or "")
                 subtotal.value = str(fila[15] or "")
                 margen.value = str(fila[16] or "")
@@ -128,6 +163,7 @@ class CostosView:
                 "margen": margen.value,
                 "total_ventas": total_ventas.value
             })
+
             conn = get_connection()
             if conn:
                 cursor = conn.cursor()
@@ -176,21 +212,21 @@ class CostosView:
                         float(datos["total_ventas"] or 0),
                         documento_cliente
                     ))
-
                     conn.commit()
                     conn.close()
 
-                    # Aquí actualizo el texto para mostrar el mensaje
                     self.mensaje_guardado.value = "Los datos se han guardado correctamente."
                     self.page.update()
-
-                    # Opcional: limpiar el mensaje después de 3 segundos
-                    import asyncio
 
                     def limpiar_mensaje():
                         self.mensaje_guardado.value = ""
                         self.page.update()
-                        threading.Timer(3, limpiar_mensaje).start()
+
+                    threading.Timer(3, limpiar_mensaje).start()
+        def ir_a_orden_pedido(e):
+            guardar_datos
+            self.page.client_storage.set("documento_cliente", self.documento_cliente)  # Guardar documento
+            self.page.go("/orden_pedido")  # Cambiás de vista
         actualizar_subtotal()
 
         return ft.View(
@@ -203,8 +239,6 @@ class CostosView:
                     padding=20,
                     bgcolor="#1976d2",
                     expand=True,
-                    
-
                     content=ft.Column([
                         ft.Image(src=resource_path("imagen/Printers.png"), width=250),
                         ft.Container(
@@ -219,20 +253,15 @@ class CostosView:
                         ft.Row([self.label("Valor Armado:"), inputs["armado"], self.label("Valor troquelado:"), inputs["troquelado"]], spacing=10),
                         ft.Row([self.label("Valor Doblado:"), inputs["doblado"], self.label("Aplicacion cinta:"), self.switch_cinta], spacing=10),
                         ft.Row([self.label("Cantidad horas:"), inputs["horas"], self.label("Barniz:"), self.switch_barniz], spacing=10),
-
                         ft.Row([
-                             ft.Container(
+                            ft.Container(
                                 content=ft.Text("Mano de Obra:", color="white", weight="bold"),
                                 bgcolor="#1536f1", padding=10, border_radius=25, width=250
                             ),
                             mano_obra
                         ], spacing=10),
-
                         ft.Divider(),
-
-                        # Mensaje de guardado aquí
                         self.mensaje_guardado,
-
                         ft.Row([
                             ft.Text("Sub total"), subtotal,
                             ft.Text("(...) c/u"),
@@ -245,13 +274,12 @@ class CostosView:
                         ], spacing=10),
                         ft.Row([
                             ft.ElevatedButton("Guardar datos (TEMP)", on_click=guardar_datos),
-                            ft.ElevatedButton("Orden pedido", bgcolor="#1536f1", color="white", on_click=lambda e: self.page.go("/orden_pedido"))       
+                            ft.ElevatedButton("Orden pedido", bgcolor="#1536f1", color="white", on_click=lambda e: ir_a_orden_pedido(e))
                         ], alignment=ft.MainAxisAlignment.END, spacing=20),
                         ft.Row([
                             ft.ElevatedButton("Volver", on_click=lambda e: self.page.go("/pantalla7"),
                                     bgcolor="white", color="black")
                         ], alignment=ft.MainAxisAlignment.START)
-
                     ], spacing=15)
                 )
             ]

@@ -32,7 +32,8 @@ class MainApp:
             documento = self.page.client_storage.get("documento_cliente")
             self.page.views.append(CostosView(self.page, documento).view())
         elif self.page.route == "/orden_pedido":
-            self.page.views.append(OrdenPedidoView(self.page).view())
+            documento = self.page.client_storage.get("documento_cliente")
+            self.page.views.append(OrdenPedidoView(self.page, documento).view())
         else:
             self.page.go("/login")
         self.page.update()
