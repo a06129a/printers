@@ -3,6 +3,7 @@ import os
 import sys
 from conexion_bd import get_connection
 import threading
+import re
 
 class CostosView:
 
@@ -31,10 +32,31 @@ class CostosView:
         total_ventas = ft.TextField(width=100, read_only=True, keyboard_type=ft.KeyboardType.NUMBER)
 
         def validar_numerico(e):
-            valor = e.control.value
-            if not valor.replace(".", "", 1).isdigit():
-                e.control.value = "".join(c for c in valor if c.isdigit() or c == ".")
-                self.page.update()
+            valor = e.control.value.strip()
+
+            # Solo permitimos dígitos, puntos y comas
+            valor = re.sub(r"[^0-9.,]", "", valor)
+
+            # Reemplazamos coma por punto
+            valor = valor.replace(",", ".")
+
+            # Bloqueamos si empieza con punto
+            if valor.startswith("."):
+                valor = ""
+
+            # Permitimos solo un punto decimal (el primero)
+            partes = valor.split(".")
+            if len(partes) > 2:
+                valor = partes[0] + "." + "".join(partes[1:])
+
+            # Validamos que el punto (si existe) esté precedido por al menos un dígito
+            if "." in valor and not re.match(r"^\d+\.\d*$", valor):
+                # El punto no está en lugar válido, lo eliminamos todo
+                valor = re.sub(r"\.", "", valor)
+
+            if e.control.value != valor:
+                e.control.value = valor
+                e.control.update()
 
         def actualizar_total_ventas(e=None):
             try:

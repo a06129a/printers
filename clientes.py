@@ -209,7 +209,7 @@ class ClientesView:
 
     def capitalizar_nombre(self, e):
         texto = e.control.value
-        capitalizado = texto.capitalize()
+        capitalizado = texto.title()
         if texto != capitalizado:
             self.nombre_input.value = capitalizado
             self.page.update()
