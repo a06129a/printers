@@ -235,6 +235,7 @@ class OrdenPedidoView:
             self.mensaje_estado.value = "Pedido guardado exitosamente"
             self.mensaje_estado.color = "green"
             self.page.update()
+            self.page.go("/clientes")
         except Exception as ex:
             print(f"Error al guardar pedido: {ex}")
             self.mensaje_estado.value = f"Error al guardar: {ex}"

@@ -63,9 +63,10 @@ class Pantalla6View:
         self.colores_input = ft.TextField(width=200, value=self.db_colores)
         self.pasadas_input = ft.TextField(width=200, value=str(self.db_pasadas), on_change=self.validar_numeros)
         self.barniz_dropdown = ft.Dropdown(width=200,
+            label_style=ft.TextStyle(color="white"),
+            text_style=ft.TextStyle(color="#000000"),
             options=[ft.dropdown.Option("Si"), ft.dropdown.Option("No")],
-            value="Si" if self.db_barniz == 1 else "No",
-            bgcolor="#ffffff"
+            value="Si" if self.db_barniz == 1 else "No"
         )
         self.pliegos_input = ft.TextField(width=200, value=str(self.db_pliegue), on_change=self.validar_numeros)
 
