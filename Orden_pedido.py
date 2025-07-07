@@ -138,9 +138,9 @@ class OrdenPedidoView:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT cantidad_unidades, cliente, publicidad, trabajo, cantidad_colores, detalles,
-                       material, cant_material, ancho_pliego, alto_pliego, espesor,
-                       troquelado, doblado, corte, cinta_bifaz, observaciones, 
-                       fecha_recepcion, fecha_entrega
+                    material, cant_material, ancho_pliego, alto_pliego, espesor,
+                    troquelado, doblado, corte, cinta_bifaz, observaciones, 
+                    fecha_recepcion, fecha_entrega
                 FROM OrdenPedido WHERE documento_cliente = ?
             """, (self.documento_cliente,))
             resultado = cursor.fetchone()

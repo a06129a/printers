@@ -16,10 +16,15 @@ class ClientesView:
     def ir_a_costos(self, documento):
         self.page.client_storage.set("documento_cliente", documento)
         self.page.go("/pantalla6")
-
+    def solo_letras_espacios_comas(self, e):
+        texto = e.control.value
+        texto_filtrado = re.sub(r"[^a-zA-ZáéíóúÁÉÍÓÚñÑ ,]", "", texto)
+        texto_formateado = " ".join(p.capitalize() for p in texto_filtrado.split(" "))
+        e.control.value = texto_formateado
+        e.control.update()
 
     def view(self):
-        self.nombre_input = ft.TextField(label="Nombre", width=200, on_change=self.capitalizar_nombre)
+        self.nombre_input = ft.TextField(label="Nombre", width=200, on_change=self.solo_letras_espacios_comas)
         self.documento_input = ft.TextField(label="Documento", width=200, on_change=self.validar_documento)
 
         self.dia_dropdown = ft.Dropdown(label="Día", width=100)
@@ -89,12 +94,21 @@ class ClientesView:
 
         def agregar_cliente(e):
             # Verificar que todos los campos estén completos
+            # Verificar que todos los campos estén completos
             if not all([self.nombre_input.value, self.documento_input.value,
                         self.dia_dropdown.value, self.mes_dropdown.value, self.anio_dropdown.value]):
                 self.mensaje.value = "Completa todos los campos"
                 self.mensaje.color = "red"
                 self.page.update()
                 return
+
+            # Verificar que el documento tenga exactamente 8 números
+            if len(self.documento_input.value) != 8 or not self.documento_input.value.isdigit():
+                self.mensaje.value = "El documento debe tener exactamente 8 números"
+                self.mensaje.color = "red"
+                self.page.update()
+                return
+
 
             # Preparar la fecha
             dia = self.dia_dropdown.value.zfill(2)

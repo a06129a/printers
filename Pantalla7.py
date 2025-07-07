@@ -322,9 +322,14 @@ class PantallaCostos:
         if len(partes) > 2:
             valor_limpio = partes[0] + "." + "".join(partes[1:])
 
+        # 🚫 Evitar valores que empiezan con punto (como .8453), forzamos a que empiece con 0
+        if valor_limpio.startswith("."):
+            valor_limpio = "0" + valor_limpio
+
         if valor_original != valor_limpio:
             e.control.value = valor_limpio
-            e.control.update()  # 👈 Importante: actualiza ese campo específico
+            e.control.update()
+
 
     def validar_y_actualizar(self, e):
         self.validar_numeros(e)
