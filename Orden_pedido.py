@@ -101,18 +101,21 @@ class OrdenPedidoView:
             hint_text="Escribe aquí todos los detalles...",
             hint_style=ft.TextStyle(color="#888888")
         )
-        self.fecha_recepcion = ft.TextField(
-            bgcolor="#ffffff", 
-            color="#000000",
-            on_change=self.solo_numeros_y_barra, 
-            width=120
-        )
-        self.fecha_entrega = ft.TextField(
-            bgcolor="#ffffff", 
-            color="#000000",
-            on_change=self.solo_numeros_y_barra, 
-            width=120
-        )
+        # Fecha recepción
+        self.dia_recepcion = ft.Dropdown(label="Día", width=100)
+        self.mes_recepcion = ft.Dropdown(label="Mes", width=130, on_change=self.actualizar_dias_recepcion)
+        self.anio_recepcion = ft.Dropdown(label="Año", width=120)
+
+        # Fecha entrega
+        self.dia_entrega = ft.Dropdown(label="Día", width=100)
+        self.mes_entrega = ft.Dropdown(label="Mes", width=130, on_change=self.actualizar_dias_entrega)
+        self.anio_entrega = ft.Dropdown(label="Año", width=120)
+
+        # Opciones
+        self.dia_recepcion.options = self.dia_entrega.options = [ft.dropdown.Option(str(d)) for d in range(1, 32)]
+        self.mes_recepcion.options = self.mes_entrega.options = [ft.dropdown.Option(str(m)) for m in range(1, 13)]
+        self.anio_recepcion.options = self.anio_entrega.options = [ft.dropdown.Option(str(a)) for a in range(2025, 2031)]
+
 
         self.cargar_datos()
 
@@ -130,6 +133,29 @@ class OrdenPedidoView:
     def solo_numeros_y_barra(self, e):
         campo = e.control
         campo.value = "".join(c for c in campo.value if c.isdigit() or c == "/")
+        self.page.update()
+    def actualizar_dias_recepcion(self, e):
+        self._actualizar_dias(self.mes_recepcion, self.dia_recepcion)
+
+    def actualizar_dias_entrega(self, e):
+        self._actualizar_dias(self.mes_entrega, self.dia_entrega)
+
+    def _actualizar_dias(self, mes_dropdown, dia_dropdown):
+        try:
+            mes = int(mes_dropdown.value or 1)
+        except:
+            mes = 1
+        dias_31 = [1, 3, 5, 7, 8, 10, 12]
+        dias_30 = [4, 6, 9, 11]
+        if mes in dias_31:
+            max_dia = 31
+        elif mes in dias_30:
+            max_dia = 30
+        else:
+            max_dia = 29
+        dia_dropdown.options = [ft.dropdown.Option(str(d)) for d in range(1, max_dia + 1)]
+        if int(dia_dropdown.value or 0) > max_dia:
+            dia_dropdown.value = None
         self.page.update()
 
     def cargar_datos(self):
@@ -162,13 +188,30 @@ class OrdenPedidoView:
                     self.corte_switch.value,
                     self.cinta_bifaz_dropdown.value,
                     self.observaciones_field.value,
-                    self.fecha_recepcion.value,
-                    self.fecha_entrega.value
+                    fecha_recepcion,
+                    fecha_entrega
                 ) = resultado
+
+                # Descomponer y asignar fecha de recepción
+                if fecha_recepcion and fecha_recepcion.count("/") == 2:
+                    d, m, a = fecha_recepcion.split("/")
+                    self.dia_recepcion.value = d
+                    self.mes_recepcion.value = m
+                    self.anio_recepcion.value = f"20{a}"
+
+                # Descomponer y asignar fecha de entrega
+                if fecha_entrega and fecha_entrega.count("/") == 2:
+                    d, m, a = fecha_entrega.split("/")
+                    self.dia_entrega.value = d
+                    self.mes_entrega.value = m
+                    self.anio_entrega.value = f"20{a}"
+
+                # Cargar lista de detalles
                 detalles_list = detalles_str.split("|||") if detalles_str else [""] * 6
                 for i, detalle in enumerate(detalles_list[:6]):
                     if i < len(self.detalles):
                         self.detalles[i].value = detalle
+
                 self.page.update()
         except Exception as ex:
             print(f"Error al cargar datos: {ex}")
@@ -227,8 +270,14 @@ class OrdenPedidoView:
                 self.corte_switch.value,
                 self.cinta_bifaz_dropdown.value or "",
                 self.observaciones_field.value or "",
-                self.fecha_recepcion.value or "",
-                self.fecha_entrega.value or ""
+                f"{(self.dia_recepcion.value or '').zfill(2)}/"
+                f"{(self.mes_recepcion.value or '').zfill(2)}/"
+                f"{(self.anio_recepcion.value or '')[-2:]}",
+
+                f"{(self.dia_entrega.value or '').zfill(2)}/"
+                f"{(self.mes_entrega.value or '').zfill(2)}/"
+                f"{(self.anio_entrega.value or '')[-2:]}"
+
             ))
             conn.commit()
             conn.close()
@@ -328,10 +377,21 @@ class OrdenPedidoView:
             ft.Container(self.observaciones_field, width=600)
         ], alignment=ft.MainAxisAlignment.CENTER)
 
-        lista7 = ft.Row([
-            ft.Row([self.texto_bloque("Fecha recepcion", padding_left=40), ft.Container(self.fecha_recepcion)]),
-            ft.Row([self.texto_bloque("Fecha entrega", padding_left=50), ft.Container(self.fecha_entrega)])
-        ], spacing=500)
+        lista7 = ft.Row(
+            [
+                ft.Row([
+                    self.texto_bloque("Fecha recepción", padding_left=40),
+                    self.dia_recepcion, self.mes_recepcion, self.anio_recepcion
+                ]),
+                ft.Row([
+                    self.texto_bloque("Fecha entrega", padding_left=50),
+                    self.dia_entrega, self.mes_entrega, self.anio_entrega
+                ])
+            ],
+            spacing=250,
+            scroll=ft.ScrollMode.ALWAYS  # ← scroll se aplica directamente a la Row
+        )
+
 
         botones_finales = ft.Row([
             ft.ElevatedButton("Volver", on_click=lambda e: self.page.go("/costos"), bgcolor="white"),
