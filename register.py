@@ -89,7 +89,7 @@ class RegistroView:
                     shadow=ft.BoxShadow(blur_radius=12, color="#6AD5FF73"),
                     content=ft.Column(
                         [
-                            ft.Image(src=resource_path("imagen/Printers_Serigrafía_ISOLOGOTIPOS_B_Horizontal.png"), width=250),
+                            ft.Image(src=resource_path("imagen/Printers.png"), width=250),
                             ft.Text("Registro de Usuario", size=26, weight="bold", color="#333"),
                             nombre, usuario, correo, contraseña, confirmar,
                             ft.ElevatedButton("Registrarse", on_click=on_register, width=300,

@@ -18,37 +18,7 @@ class OrdenPedidoView:
             e.control.value = filtrado
             self.page.update()
 
-        def validar_numerico(self, e):
-            valor = e.control.value.strip()
-
-        # Solo permitimos dígitos, puntos y comas
-            valor = re.sub(r"[^0-9.,]", "", valor)
-
-            # Reemplazamos coma por punto
-            valor = valor.replace(",", ".")
-
-            # Bloqueamos si empieza con punto
-            if valor.startswith("."):
-                valor = ""
-
-            # Permitimos solo un punto decimal (el primero)
-            partes = valor.split(".")
-            if len(partes) > 2:
-                valor = partes[0] + "." + "".join(partes[1:])
-
-            # Si hay punto decimal, validamos que haya al menos un número antes
-            if "." in valor:
-                if not re.match(r"^\d+.\d*$", valor):
-                    valor = re.sub(r".", "", valor)
-                else:
-                    # Limitar a máximo 4 decimales
-                    entero, decimales = valor.split(".")
-                    decimales = decimales[:4]
-                    valor = f"{entero}.{decimales}"
-
-            if e.control.value != valor:
-                e.control.value = valor
-                e.control.update()
+        
 
         self.cantidad_unidades = ft.TextField(
             bgcolor="#ffffff", 
@@ -61,7 +31,7 @@ class OrdenPedidoView:
             bgcolor="#ffffff",
             color="#000000",
             label_style=ft.TextStyle(color="#666666"),
-            on_change=self.solo_letras_espacios_comas
+            read_only=True
         )
         self.publicidad_field = ft.TextField(
             label="Publicidad", 
@@ -108,7 +78,7 @@ class OrdenPedidoView:
             bgcolor="#ffffff", 
             color="#000000",
             label_style=ft.TextStyle(color="#666666"),
-           on_change=partial(self.validar_numerico),
+            on_change=self.validar_numerico,
             width=120
         )
         self.alto_pliego = ft.TextField(
@@ -116,13 +86,13 @@ class OrdenPedidoView:
             bgcolor="#ffffff", 
             color="#000000",
             label_style=ft.TextStyle(color="#666666"),
-           on_change=partial(self.validar_numerico),
+            on_change=self.validar_numerico,
             width=120
         )
         self.espesor_field = ft.TextField(
             bgcolor="#ffffff", 
             color="#000000",
-            on_change=partial(self.validar_numerico), 
+            on_change=self.validar_numerico, 
             width=120
         )
         self.troquelado_switch = ft.Switch(value=False)
@@ -156,6 +126,38 @@ class OrdenPedidoView:
         self.anio_recepcion.options = self.anio_entrega.options = [ft.dropdown.Option(str(a)) for a in range(2025, 2031)]
 
         self.cargar_datos()
+
+    def validar_numerico(self, e):
+            valor = e.control.value.strip()
+
+            # Solo permitimos dígitos, puntos y comas
+            valor = re.sub(r"[^0-9.,]", "", valor)
+
+            # Reemplazamos coma por punto
+            valor = valor.replace(",", ".")
+
+            # Bloqueamos si empieza con punto
+            if valor.startswith("."):
+                valor = ""
+
+            # Permitimos solo un punto decimal (el primero)
+            partes = valor.split(".")
+            if len(partes) > 2:
+                valor = partes[0] + "." + "".join(partes[1:])
+
+            # Si hay punto decimal, validamos que haya al menos un número antes
+            if "." in valor:
+                if not re.match(r"^\d+.\d*$", valor):
+                    valor = re.sub(r".", "", valor)
+                else:
+                    # Limitar a máximo 4 decimales
+                    entero, decimales = valor.split(".")
+                    decimales = decimales[:4]
+                    valor = f"{entero}.{decimales}"
+
+            if e.control.value != valor:
+                e.control.value = valor
+                e.control.update()
 
     def solo_letras_espacios_comas(self, e):
         texto = e.control.value
@@ -255,6 +257,16 @@ class OrdenPedidoView:
                 self.page.update()
         except Exception as ex:
             print(f"Error al cargar datos: {ex}")
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute("""SELECT nombre FROM Clientes WHERE documento = ?""", (self.documento_cliente,))
+            resultado = cursor.fetchone()
+            if resultado:
+                self.cliente_field.value = resultado[0]
+            conn.close()
+        except Exception as ex:
+            print(f"Error al cargar nombre del cliente: {ex}")
 
     def guardar_pedido(self, e):
         try:

@@ -7,10 +7,10 @@ class PantallaCostos:
         self.page = page
         self.page.title = "Costos de Producción"
         self.page.scroll = ft.ScrollMode.ALWAYS
-        self.page.bgcolor = "#0277bd"
+        self.page.bgcolor = "#0039e6"
         self.documento_cliente=documento_cliente
 
-        # Variables de entrada
+        # Variable  s de entrada
         self.ancho = ft.TextField(label="Ancho (cm)", width=100, on_change=self.validar_y_actualizar)
         self.largo = ft.TextField(label="Largo (cm)", width=100, on_change=self.validar_y_actualizar)
         self.espesor = ft.TextField(label="Espesor (cm)", width=100, on_change=self.validar_y_actualizar)
@@ -187,6 +187,7 @@ class PantallaCostos:
                     Costo_impresion_Costo_Final,
                     Costo_tinta_Tinta_Rinde,
                     Costo_tinta_Porciento,
+                    Costo_tinta_Caras,
                     Costo_tinta_Precioxlt,
                     Costo_tinta_Lts_Necesarios,
                     Costo_tinta_Costo_final,
@@ -203,7 +204,7 @@ class PantallaCostos:
                     Costo_barniz_Usxlt,
                     Costo_barniz_Lts,
                     Costo_barniz_Costo_Finalxcm
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 self.documento_cliente,
                 self.dem_impr.value,
@@ -216,6 +217,7 @@ class PantallaCostos:
                 self.costo_impresion.value,
                 self.tinta_rinde.value,
                 self.tinta_porcentaje.value,
+                self.tinta_caras.value,
                 self.precio_tinta_litro.value,
                 self.litros_necesarios.value,
                 self.costo_tinta.value,
@@ -320,9 +322,14 @@ class PantallaCostos:
         if len(partes) > 2:
             valor_limpio = partes[0] + "." + "".join(partes[1:])
 
+        # 🚫 Evitar valores que empiezan con punto (como .8453), forzamos a que empiece con 0
+        if valor_limpio.startswith("."):
+            valor_limpio = "0" + valor_limpio
+
         if valor_original != valor_limpio:
             e.control.value = valor_limpio
-            e.control.update()  # 👈 Importante: actualiza ese campo específico
+            e.control.update()
+
 
     def validar_y_actualizar(self, e):
         self.validar_numeros(e)
@@ -332,63 +339,76 @@ class PantallaCostos:
         return ft.View(
             route="/costos",
             scroll=ft.ScrollMode.ALWAYS,
+            horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
+            bgcolor="#1976d2",   # ocupa todo el ancho
             controls=[
-                ft.Row([
-                    ft.Image(src="imagenes\\Printers.png", width=150),
-                    ft.ElevatedButton("Clientes", on_click=lambda e: self.page.go("/clientes")),
-                    ft.ElevatedButton("Crear", on_click=lambda e: print("Guardar"))
-                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                ft.Divider(),
-                ft.Column([
-                    ft.Text("Superficie y Volumen", size=24, weight="bold", color="white"),
-                    ft.Row([self.ancho, self.largo, self.espesor]),
-                    self.superficie,
-                    self.volumen,
-                    ft.Divider(),
-                    ft.Text("Datos de Impresión", size=24, weight="bold", color="white"),
-                    ft.Row([self.unidades_posturas, self.dem_impr, self.colores]),
-                    self.pliegos,
-                    self.pasadas,
-                    ft.Divider(),
-                    ft.Text("Costo Material", size=24, weight="bold", color="white"),
-                    ft.Row([self.precio_kg]),
-                    self.peso,
-                    self.total_kg,
-                    self.costo_material,
-                    ft.Divider(),
-                    ft.Text("Costo Película", size=24, weight="bold", color="white"),
-                    ft.Row([self.precio_cm2]),
-                    self.costo_pelicula,
-                    ft.Divider(),
-                    ft.Text("Costo Impresión", size=24, weight="bold", color="white"),
-                    ft.Row([self.precio_pasada, self.costo_min]),
-                    self.costo_impresion,
-                    ft.Divider(),
-                    ft.Text("Costo Tinta", size=24, weight="bold", color="white"),
-                    ft.Row([self.tinta_rinde, self.tinta_porcentaje, self.tinta_caras, self.precio_tinta_litro]),
-                    self.litros_necesarios,
-                    self.costo_tinta,
-                    ft.Divider(),
-                    ft.Text("Costo Mano de Obra", size=24, weight="bold", color="white"),
-                    ft.Row([self.personal, self.jornal, self.dias]),
-                    self.costo_mano_obra,
-                    ft.Divider(),
-                    ft.Text("Tipos de Cinta", size=24, weight="bold", color="white"),
-                    ft.Row([self.largo_rollo, self.precio_rollo]),
-                    self.costo_cinta,
-                    ft.Divider(),
-                    ft.Text("Costo Barniz", size=24, weight="bold", color="white"),
-                    ft.Row([self.tinta_rinde_barniz, self.tinta_porcentaje_barniz, self.tinta_caras_barniz, self.precio_barniz_litro]),
-                    self.litros_necesarios_barniz,
-                    self.costo_barniz,
-                    ft.Divider(),
-                    ft.Row([
-                        ft.ElevatedButton("Atrás", on_click=lambda e: self.page.go("/pantalla6")),
-                        ft.ElevatedButton("Siguiente", on_click=lambda e: self.ir_a_costos(e))
+                ft.Container(
+                    bgcolor="#1976d2",   # Fondo azul más oscuro, por ejemplo
+                    padding=10,          # Espaciado interno
+                    border_radius=0, 
+                    content=ft.Row([
+                        ft.Image(src="imagen/Printers.png", width=150),
+                        ft.ElevatedButton("Clientes", on_click=lambda e: self.page.go("/clientes")),
+                        ft.ElevatedButton("Crear", on_click=lambda e: print("Guardar"))
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
-                ], spacing=15)
-            ]
-        )
+                ),  
+                ft.Divider(),
+                ft.Container(
+                    bgcolor="#1976d2",  # Color de fondo del bloque
+                    padding=10,         # Espacio interno
+                    border_radius=0,   # Bordes redondeados (opcional)
+                    content=ft.Column([
+                        ft.Text("Superficie y Volumen", size=24, weight="bold", color="white"),
+                        ft.Row([self.ancho, self.largo, self.espesor]),
+                        self.superficie,
+                        self.volumen,
+                        ft.Divider(),
+                        ft.Text("Datos de Impresión", size=24, weight="bold", color="white"),
+                        ft.Row([self.unidades_posturas, self.dem_impr, self.colores]),
+                        self.pliegos,
+                        self.pasadas,
+                        ft.Divider(),
+                        ft.Text("Costo Material", size=24, weight="bold", color="white"),
+                        ft.Row([self.precio_kg]),
+                        self.peso,
+                        self.total_kg,
+                        self.costo_material,
+                        ft.Divider(),
+                        ft.Text("Costo Película", size=24, weight="bold", color="white"),
+                        ft.Row([self.precio_cm2]),
+                        self.costo_pelicula,
+                        ft.Divider(),
+                        ft.Text("Costo Impresión", size=24, weight="bold", color="white"),
+                        ft.Row([self.precio_pasada, self.costo_min]),
+                        self.costo_impresion,
+                        ft.Divider(),
+                        ft.Text("Costo Tinta", size=24, weight="bold", color="white"),
+                        ft.Row([self.tinta_rinde, self.tinta_porcentaje, self.tinta_caras, self.precio_tinta_litro]),
+                        self.litros_necesarios,
+                        self.costo_tinta,
+                        ft.Divider(),
+                        ft.Text("Costo Mano de Obra", size=24, weight="bold", color="white"),
+                        ft.Row([self.personal, self.jornal, self.dias]),
+                        self.costo_mano_obra,
+                        ft.Divider(),
+                        ft.Text("Tipos de Cinta", size=24, weight="bold", color="white"),
+                        ft.Row([self.largo_rollo, self.precio_rollo]),
+                        self.costo_cinta,
+                        ft.Divider(),
+                        ft.Text("Costo Barniz", size=24, weight="bold", color="white"),
+                        ft.Row([self.tinta_rinde_barniz, self.tinta_porcentaje_barniz, self.    tinta_caras_barniz, self.precio_barniz_litro]),
+                        self.litros_necesarios_barniz,
+                        self.costo_barniz,
+                        ft.Divider(),
+                        ft.Row([
+                            ft.ElevatedButton("Atrás", on_click=lambda e: self.page.go("/pantalla6")),
+                            ft.ElevatedButton("Siguiente", on_click=lambda e: self.ir_a_costos(e))
+                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+                    ], spacing=15)
+                )
+                 
+        ],
+    )
 def limpiar_valor(valor):
     if valor is None:
         return 0.0

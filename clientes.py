@@ -1,6 +1,8 @@
 from conexion_bd import get_connection
 import flet as ft
 import re
+import os
+import sys
 from functools import partial
 
 class ClientesView:
@@ -13,34 +15,16 @@ class ClientesView:
 
     def ir_a_costos(self, documento):
         self.page.client_storage.set("documento_cliente", documento)
-        self.page.go("/costos")
+        self.page.go("/pantalla6")
+    def solo_letras_espacios_comas(self, e):
+        texto = e.control.value
+        texto_filtrado = re.sub(r"[^a-zA-ZáéíóúÁÉÍÓÚñÑ ,]", "", texto)
+        texto_formateado = " ".join(p.capitalize() for p in texto_filtrado.split(" "))
+        e.control.value = texto_formateado
+        e.control.update()
 
     def view(self):
-
-
-
-        def capitalizar_nombre(self, e):
-            texto = e.control.value
-
-            # Eliminar caracteres no válidos (solo letras, espacios y acentos permitidos)
-            texto_filtrado = re.sub(r"[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]", "", texto)
-
-            if texto_filtrado:
-                # Normalizar espacios (quitar múltiples y espacios extremos)
-                texto_filtrado = re.sub(r'\s+', ' ', texto_filtrado).strip()
-
-                # Capitalizar cada palabra manualmente
-                palabras = texto_filtrado.split()
-                palabras_capitalizadas = [
-                    palabra[:1].upper() + palabra[1:].lower() for palabra in palabras
-                ]
-                texto_filtrado = ' '.join(palabras_capitalizadas)
-
-            if texto != texto_filtrado:
-                self.nombre_input.value = texto_filtrado
-                self.page.update()
-        self.nombre_input = ft.TextField(label="Nombre", width=200, on_blur=self.capitalizar_nombre())
-        self.nombre_input.on_change=capitalizar_nombre()
+        self.nombre_input = ft.TextField(label="Nombre", width=200, on_change=self.solo_letras_espacios_comas)
         self.documento_input = ft.TextField(label="Documento", width=200, on_change=self.validar_documento)
 
         self.dia_dropdown = ft.Dropdown(label="Día", width=100)
@@ -50,6 +34,15 @@ class ClientesView:
         self.dia_dropdown.options = [ft.dropdown.Option(str(d)) for d in range(1, 32)]
         self.mes_dropdown.options = [ft.dropdown.Option(str(m)) for m in range(1, 13)]
         self.anio_dropdown.options = [ft.dropdown.Option(str(a)) for a in range(2025, 2031)]
+
+        def resource_path(relative_path):
+            """ Obtener la ruta absoluta a un recurso, funciona tanto en dev como en ejecutable """
+            try:
+                base_path = sys._MEIPASS  # cuando está empaquetado con PyInstaller
+            except Exception:
+                base_path = os.path.abspath(".")
+
+            return os.path.join(base_path, relative_path)
 
         def borrar_cliente(cliente_id):
             conn = get_connection()
@@ -100,10 +93,15 @@ class ClientesView:
 
 
         def agregar_cliente(e):
-            # Verificar que todos los campos estén completos
             if not all([self.nombre_input.value, self.documento_input.value,
                         self.dia_dropdown.value, self.mes_dropdown.value, self.anio_dropdown.value]):
                 self.mensaje.value = "Completa todos los campos"
+                self.mensaje.color = "red"
+                self.page.update()
+                return
+
+            if len(self.documento_input.value) != 8 or not self.documento_input.value.isdigit():
+                self.mensaje.value = "El documento debe tener exactamente 8 números"
                 self.mensaje.color = "red"
                 self.page.update()
                 return
@@ -114,41 +112,42 @@ class ClientesView:
             anio = self.anio_dropdown.value[-2:]
             fecha = f"{dia}/{mes}/{anio}"
 
+            documento_final = self.documento_input.value
             conn = get_connection()
             if conn:
                 cursor = conn.cursor()
-                cursor.execute("SELECT COUNT(*) FROM clientes WHERE Documento = ?", (self.documento_input.value,))
-                if cursor.fetchone()[0] > 0:
-                    # Documento ya existe
-                    self.mensaje.value = "Documento ya registrado"
-                    self.mensaje.color = "red"
-                    self.page.update()
-                    conn.close()
-                    return  # 👈 No continúa
+
+                # Verificar si el documento ya existe
+                base_dni = documento_final
+                sufijo = 1
+                cursor.execute("SELECT Documento FROM clientes WHERE Documento = ?", (documento_final,))
+                while cursor.fetchone():
+                    documento_final = f"{base_dni}{sufijo}"
+                    cursor.execute("SELECT Documento FROM clientes WHERE Documento = ?", (documento_final,))
+                    sufijo += 1
 
                 # Insertar el cliente
                 cursor.execute(
                     "INSERT INTO clientes (nombre, Documento, fecha_ultima_edicion) VALUES (?, ?, ?)",
-                    (self.nombre_input.value, self.documento_input.value, fecha)
+                    (self.nombre_input.value, documento_final, fecha)
                 )
-
                 conn.commit()
                 conn.close()
 
-            # Si todo salió bien, limpiar los campos
-            documento_agregado = self.documento_input.value  # 👉 Guardamos el documento antes de limpiar
+            # Limpiar campos
             self.nombre_input.value = ""
             self.documento_input.value = ""
             self.dia_dropdown.value = None
             self.mes_dropdown.value = None
             self.anio_dropdown.value = None
-            self.mensaje.value = "Cliente agregado"
+            self.mensaje.value = f"Cliente agregado con documento: {documento_final}"
             self.mensaje.color = "green"
             self.cargar_clientes()
             self.page.update()
 
-            # 👉 Navegar a costos
-            self.ir_a_costos(documento_agregado)
+            # Navegar a costos con el documento final
+            self.ir_a_costos(documento_final)
+
 
 
         def cambiar_lista(e):
@@ -163,14 +162,14 @@ class ClientesView:
 
         return ft.View(
             route="/clientes",
-            bgcolor="#0d47a1",
+            bgcolor="#1976d2",
             scroll=ft.ScrollMode.ALWAYS,
             controls=[
                 ft.Container(
                     padding=20,
                     content=ft.Column([
-                        ft.Row([ft.ElevatedButton("Cerrar sesion",on_click=lambda e: self.page.go("/login"),bgcolor="#8B0000",color="white")]),
-                        ft.Image(src="Printers Serigrafía_ISOLOGOTIPOS_B_Horizontal.png", width=250),
+                        ft.Row([ft.ElevatedButton("Cerrar sesion",on_click=lambda e: self.page.go("/login"),bgcolor="red",color="white")]),
+                        ft.Image(src=resource_path("imagen/Printers.png"), width=250),
                         ft.Text("Gestión de Clientes", size=28, weight="bold", color="white"),
                         ft.Row([
                             self.nombre_input,
@@ -219,6 +218,12 @@ class ClientesView:
             return [dict(zip(["id_cliente", "nombre", "Documento", "fecha_ultima_edicion"], row)) for row in rows]
         return []
 
+    def capitalizar_nombre(self, e):
+        texto = e.control.value
+        capitalizado = texto.title()
+        if texto != capitalizado:
+            self.nombre_input.value = capitalizado
+            self.page.update()
 
     def validar_documento(self, e):
         texto = re.sub(r"[^\d]", "", e.control.value)[:8]

@@ -61,7 +61,7 @@ class LoginView:
                     shadow=ft.BoxShadow(blur_radius=12, color="#6590EC68"),
                     content=ft.Column(
                         [
-                            ft.Image(src=resource_path("imagen/Printers_Serigrafía_ISOLOGOTIPOS_B_Horizontal.png"), width=250),
+                            ft.Image(src=resource_path("imagen/Printers.png"), width=250),
                             ft.Text("Iniciar Sesión", size=26, weight="bold", color="#333"),
                             usuario,
                             contraseña,

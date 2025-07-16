@@ -22,8 +22,8 @@ class Pantalla6View:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT Unidades, Pliego_Ancho, Unidad_Largo, Unidad_Superficie, Cinta_Espesor, Cinta_Volumen,
-                   Pliego_Posturas, Cinta_CM, Impre_Cant_Color, Impre_Colores, Impre_Pliegos,
-                   Impre_Pasadas, Impre_Barniz, Pliegue
+            Pliego_Posturas, Cinta_CM, Impre_Cant_Color, Impre_Colores, Impre_Pliegos,
+            Impre_Pasadas, Impre_Barniz, Pliegue
             FROM Pliegues
             WHERE Documento = ?
         """, (self.documento_cliente,))
@@ -32,8 +32,8 @@ class Pantalla6View:
 
         if row:
             (self.db_unidades, self.db_ancho, self.db_largo, self.db_superficie, self.db_espesor, self.db_volumen,
-             self.db_postura, self.db_cinta, self.db_cant_colores, self.db_colores, self.db_pliegos,
-             self.db_pasadas, self.db_barniz, self.db_pliegue) = row
+            self.db_postura, self.db_cinta, self.db_cant_colores, self.db_colores, self.db_pliegos,
+            self.db_pasadas, self.db_barniz, self.db_pliegue) = row
         else:
             self.db_unidades = self.db_ancho = self.db_largo = self.db_superficie = self.db_espesor = self.db_volumen = 0
             self.db_postura = self.db_cinta = self.db_cant_colores = self.db_pasadas = self.db_barniz = self.db_pliegue = 0
@@ -47,25 +47,26 @@ class Pantalla6View:
                 self.contenedor_pagina
             ],
             scroll=ft.ScrollMode.AUTO,
-            bgcolor="#002591"
+            bgcolor="#1976d2"
         )
 
     def crear_controles(self):
-        self.unidades_input = ft.TextField(width=200, value=str(self.db_unidades), on_change=self.validar_numeros)
+        self.unidades_input = ft.TextField(width=200, value=str(self.db_unidades), on_change=self.validar_numeros_enteros)
         self.cinta_input = ft.TextField(width=200, value=str(self.db_cinta), on_change=self.validar_numeros)
         self.espesor_input = ft.TextField(width=200, value=str(self.db_espesor), on_change=self.ajustar_y_actualizar)
         self.postura_input = ft.TextField(width=200, value=str(self.db_postura), on_change=self.validar_numeros)
-        self.superficie_input = ft.TextField(width=200, value=str(self.db_superficie), read_only=True, bgcolor="#a3c9f1")
+        self.superficie_input = ft.TextField(width=200, value=str(self.db_superficie), read_only=True, bgcolor="#001855")
         self.ancho_input = ft.TextField(width=200, value=str(self.db_ancho), on_change=self.ajustar_y_actualizar)
         self.largo_input = ft.TextField(width=200, value=str(self.db_largo), on_change=self.ajustar_y_actualizar)
-        self.volumen_input = ft.TextField(width=200, value=str(self.db_volumen), read_only=True, bgcolor="#a3c9f1")
+        self.volumen_input = ft.TextField(width=200, value=str(self.db_volumen), read_only=True, bgcolor="#001855")
         self.cant_colores_input = ft.TextField(width=200, value=str(self.db_cant_colores), on_change=self.validar_numeros)
         self.colores_input = ft.TextField(width=200, value=self.db_colores)
         self.pasadas_input = ft.TextField(width=200, value=str(self.db_pasadas), on_change=self.validar_numeros)
         self.barniz_dropdown = ft.Dropdown(width=200,
+            label_style=ft.TextStyle(color="white"),
+            text_style=ft.TextStyle(color="#000000"),
             options=[ft.dropdown.Option("Si"), ft.dropdown.Option("No")],
-            value="Si" if self.db_barniz == 1 else "No",
-            bgcolor="#ffffff"
+            value="Si" if self.db_barniz == 1 else "No"
         )
         self.pliegos_input = ft.TextField(width=200, value=str(self.db_pliegue), on_change=self.validar_numeros)
 
@@ -81,6 +82,17 @@ class Pantalla6View:
                 valor = partes[0] + "." + "".join(partes[1:])
         e.control.value = valor
         self.page.update()
+        
+    def validar_numeros_enteros(self, e):
+        valor = e.control.value
+        # Eliminar todo lo que no sea un dígito (0-9)
+        valor = re.sub(r"[^\d]", "", valor)
+        e.control.value = valor
+        self.page.update()
+
+    def ajustar_y_actualizar_enteros(self, e):
+        self.validar_numeros_enteros(e)
+        self.actualizar()
 
     def ajustar_y_actualizar(self, e):
         self.validar_numeros(e)
@@ -145,11 +157,11 @@ class Pantalla6View:
             print("Error al guardar presupuesto:", ex)
 
     def volver_atras(self, e):
-        from clientes_view import ClientesView
+        from clientes import ClientesView
         self.page.go("/clientes")
 
     def armar_vista(self):
-        logo = ft.Image(src=self.resource_path("imagen/Printers_Serigrafía_ISOLOGOTIPOS_B_Horizontal.png"), width=150, height=75, fit=ft.ImageFit.CONTAIN)
+        logo = ft.Image(src=self.resource_path("imagen/Printers.png"), width=150, height=75, fit=ft.ImageFit.CONTAIN)
 
         header = ft.Row(
             controls=[
