@@ -268,30 +268,51 @@ class PantallaCostos:
             tinta_caras_b = limpiar_valor(self.tinta_caras_barniz.value)
             precio_barniz_litro = limpiar_valor(self.precio_barniz_litro.value)
 
-            superficie = (ancho * largo) / 10000
-            volumen = ancho * largo * espesor
-            pliegos = (unidades + (unidades * demasia))
-            pasadas = colores * pliegos
+            # Calcular superficie y volumen
+            superficie = (ancho * largo) / 10000 if ancho and largo else 0
+            volumen = ancho * largo * espesor if ancho and largo and espesor else 0
 
-            peso = (volumen * 1.4) / 1000
-            total_kg = peso * pliegos
-            costo_material = precio_kg * total_kg
+            # Calcular pliegos y pasadas
+            pliegos = (unidades + (unidades * demasia)) if unidades else 0
+            pasadas = colores * pliegos if colores else 0
 
-            costo_pelicula = superficie * precio_cm2
+            # Peso y costos de material
+            peso = (volumen * 1.4) / 1000 if volumen else 0
+            total_kg = peso * pliegos if peso else 0
+            costo_material = precio_kg * total_kg if precio_kg else 0
 
-            costo_impresion = max(pliegos * colores * precio_pasada, costo_min)
+            # Costo película
+            costo_pelicula = superficie * precio_cm2 if superficie and precio_cm2 else 0
 
-            sup_total = superficie * pliegos
-            litros_necesarios = sup_total / (tinta_rinde * tinta_pct * tinta_caras)
-            costo_tinta = precio_tinta_litro * litros_necesarios
+            # Costo impresión
+            calculo_impresion = pliegos * colores * precio_pasada
+            costo_impresion = max(calculo_impresion, costo_min) if precio_pasada and colores else costo_min
 
-            costo_mano_obra = personal * jornal * dias
+            # Costo tinta
+            sup_total = superficie * pliegos if superficie and pliegos else 0
+            if tinta_rinde and tinta_pct and tinta_caras:
+                litros_necesarios = sup_total / (tinta_rinde * tinta_pct * tinta_caras)
+            else:
+                litros_necesarios = 0
+            costo_tinta = precio_tinta_litro * litros_necesarios if precio_tinta_litro else 0
 
-            costo_cinta = precio_rollo / (largo_rollo * 100)
+            # Costo mano de obra
+            costo_mano_obra = personal * jornal * dias if personal and jornal and dias else 0
 
-            litros_barniz = sup_total / (tinta_rinde_b * tinta_pct_b * tinta_caras_b)
-            costo_barniz = precio_barniz_litro * litros_barniz
+            # Costo cinta
+            if largo_rollo:
+                costo_cinta = precio_rollo / (largo_rollo * 100)
+            else:
+                costo_cinta = 0
 
+            # Costo barniz
+            if tinta_rinde_b and tinta_pct_b and tinta_caras_b:
+                litros_barniz = sup_total / (tinta_rinde_b * tinta_pct_b * tinta_caras_b)
+            else:
+                litros_barniz = 0
+            costo_barniz = precio_barniz_litro * litros_barniz if precio_barniz_litro else 0
+
+            # Actualizar la interfaz
             self.superficie.value = f"{superficie:.2f} cm²"
             self.volumen.value = f"{volumen:.2f} cm³"
             self.pliegos.value = f"{pliegos:.0f}"
@@ -312,6 +333,7 @@ class PantallaCostos:
 
         except Exception as ex:
             print("Error de cálculo:", ex)
+
 
     def validar_numeros(self, e):
         valor_original = e.control.value

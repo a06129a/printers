@@ -123,9 +123,14 @@ class OrdenPedidoView:
 
         self.dia_recepcion.options = self.dia_entrega.options = [ft.dropdown.Option(str(d)) for d in range(1, 32)]
         self.mes_recepcion.options = self.mes_entrega.options = [ft.dropdown.Option(str(m)) for m in range(1, 13)]
-        self.anio_recepcion.options = self.anio_entrega.options = [ft.dropdown.Option(str(a)) for a in range(2025, 2031)]
+        self.anio_recepcion.options = self.anio_entrega.options = [ft.dropdown.Option(str(a)) for a in range(1995, 2100)]
 
         self.cargar_datos()
+        self.anio_entrega.on_change = self.actualizar_dias_entrega
+        self.mes_entrega.on_change = self.actualizar_dias_entrega
+
+        self.anio_recepcion.on_change = self.actualizar_dias_recepcion
+        self.mes_recepcion.on_change = self.actualizar_dias_recepcion
 
     def validar_numerico(self, e):
             valor = e.control.value.strip()
@@ -207,18 +212,20 @@ class OrdenPedidoView:
         try:
             conn = get_connection()
             cursor = conn.cursor()
+
+            # Buscar datos en OrdenPedido
             cursor.execute("""
-                SELECT cantidad_unidades, cliente, publicidad, trabajo, cantidad_colores, detalles,
+                SELECT cantidad_unidades, publicidad, trabajo, cantidad_colores, detalles,
                     material, cant_material, ancho_pliego, alto_pliego, espesor,
                     troquelado, doblado, corte, cinta_bifaz, observaciones, 
                     fecha_recepcion, fecha_entrega
                 FROM OrdenPedido WHERE documento_cliente = ?
             """, (self.documento_cliente,))
             resultado = cursor.fetchone()
+
             if resultado:
                 (
                     self.cantidad_unidades.value,
-                    self.cliente_field.value,
                     self.publicidad_field.value,
                     self.trabajo_field.value,
                     self.cantidad_colores.value,
@@ -237,36 +244,48 @@ class OrdenPedidoView:
                     fecha_entrega
                 ) = resultado
 
+                # Cargar fecha de recepción
                 if fecha_recepcion and fecha_recepcion.count("/") == 2:
                     d, m, a = fecha_recepcion.split("/")
                     self.dia_recepcion.value = d
                     self.mes_recepcion.value = m
                     self.anio_recepcion.value = f"20{a}"
 
+                # Cargar fecha de entrega
                 if fecha_entrega and fecha_entrega.count("/") == 2:
                     d, m, a = fecha_entrega.split("/")
                     self.dia_entrega.value = d
                     self.mes_entrega.value = m
                     self.anio_entrega.value = f"20{a}"
-
+                else:
+                    # Buscar fecha sugerida en Clientes si no existe en OrdenPedido
+                    cursor.execute("SELECT fecha_ultima_edicion FROM Clientes WHERE documento = ?", (self.documento_cliente,))
+                    fecha_cliente = cursor.fetchone()
+                    if fecha_cliente and fecha_cliente[0] and fecha_cliente[0].count("/") == 2:
+                        d, m, a = fecha_cliente[0].split("/")
+                        self.dia_entrega.value = d
+                        self.mes_entrega.value = m
+                        self.anio_entrega.value = f"20{a}"
+                self.actualizar_dias_entrega(None)
+                # Cargar detalles
                 detalles_list = detalles_str.split("|||") if detalles_str else [""] * 6
                 for i, detalle in enumerate(detalles_list[:6]):
                     if i < len(self.detalles):
                         self.detalles[i].value = detalle
 
                 self.page.update()
-        except Exception as ex:
-            print(f"Error al cargar datos: {ex}")
-        try:
-            conn = get_connection()
-            cursor = conn.cursor()
-            cursor.execute("""SELECT nombre FROM Clientes WHERE documento = ?""", (self.documento_cliente,))
+
+            # Cargar nombre del cliente desde tabla Clientes
+            cursor.execute("SELECT nombre FROM Clientes WHERE documento = ?", (self.documento_cliente,))
             resultado = cursor.fetchone()
             if resultado:
                 self.cliente_field.value = resultado[0]
+
             conn.close()
+
         except Exception as ex:
-            print(f"Error al cargar nombre del cliente: {ex}")
+            print(f"Error al cargar datos de pedido: {ex}")
+
 
     def guardar_pedido(self, e):
         try:
