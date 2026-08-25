@@ -5,4 +5,4 @@ def main(page: ft.Page):
     app = MainApp(page)
     app.run()
 
-ft.app(target=main)
+ft.run(main)
